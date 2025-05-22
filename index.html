@@ -1,0 +1,2129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>솔라 시스템 마블 - 개선 버전</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* styles.css 내용을 여기에 통합 */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000010; /* 어두운 우주 배경 */
+            color: #fff;
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden; /* 스크롤바 방지 */
+        }
+        #gameCanvas {
+            background-color: #000000; /* 캔버스 자체 배경은 검정 */
+            border: 1px solid #333;
+            box-shadow: 0 0 20px rgba(0, 128, 255, 0.5);
+            border-radius: 8px;
+            display: block; /* 중앙 정렬 및 크기 조정을 위해 block으로 설정 */
+            /* Removed width: 100%; height: 100%; from CSS, let JS handle it */
+        }
+        .ui-panel {
+            background-color: rgba(10, 20, 40, 0.9); /* 투명도 약간 높임 */
+            border: 1px solid rgba(0, 128, 255, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 128, 255, 0.3);
+            text-align: center;
+            box-sizing: border-box;
+        }
+        #draftInfoPanel {
+            position: fixed;
+            bottom: 60px; /* 파워바와 겹치지 않도록 위치 조정, 약간 위로 */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 380px; /* 최대 너비 설정 */
+            min-height: 120px; /* 최소 높이 조정 */
+            display: none;
+            z-index: 100;
+            padding: 10px;
+        }
+        #draftInfoPanel h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #FFD700;
+            font-size: 1.1em;
+        }
+        #draftInfoPanel p {
+            font-size: 0.85em;
+            color: #E0E0E0;
+            margin-bottom: 8px;
+        }
+        .stat-bar-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 0.75em;
+        }
+        .stat-bar-label {
+            width: 45px; /* 레이블 너비 약간 증가 */
+            margin-right: 5px;
+            color: #B0C4DE;
+            flex-shrink: 0;
+            text-align: left;
+        }
+        .stat-bar {
+            flex-grow: 1;
+            height: 10px;
+            background-color: #333;
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid #555;
+        }
+        .stat-bar-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 2px;
+            transition: width 0.3s ease-out;
+        }
+        .stat-bar-value {
+            width: 35px; /* 값 표시 너비 조정 */
+            text-align: right;
+            margin-left: 5px;
+            color: #E0E0E0;
+            flex-shrink: 0;
+        }
+        #powerBarContainer {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 250px;
+            height: 30px;
+            background-color: rgba(30, 30, 40, 0.8);
+            border-radius: 7px;
+            border: 1px solid #555;
+            padding: 3px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 100;
+        }
+        #powerBarFill {
+            width: 0%;
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            transition: width 0.05s linear, background-color 0.05s linear;
+        }
+        #powerBarText {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 0.9em;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        #gameMessages {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            border-radius: 5px;
+            font-size: 1.2em;
+            z-index: 120;
+            display: none;
+            text-align: center;
+            white-space: nowrap; /* Prevent text wrapping */
+        }
+        #turnIndicator {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            padding: 8px 15px;
+            background-color: rgba(20,20,30,0.85);
+            border-radius: 6px;
+            font-size: 1.1em;
+            z-index: 90;
+        }
+        #aliveCount {
+            position: fixed;
+            top: 60px;
+            left: 15px;
+            padding: 8px 15px;
+            background-color: rgba(20,20,30,0.85);
+            border-radius: 6px;
+            font-size: 0.9em;
+            z-index: 90;
+        }
+        #instructions {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            font-size: 0.8em;
+            color: #AAA;
+            text-align: right;
+            z-index: 90;
+        }
+        .player-picks-ui {
+            position: fixed;
+            padding: 5px 10px;
+            background-color: rgba(10, 20, 40, 0.7);
+            border-radius: 5px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            z-index: 90;
+            white-space: nowrap; /* Prevent text wrapping */
+        }
+        .player-picks-ui img {
+            width: 25px;
+            height: 25px;
+            margin-left: 5px;
+            border-radius: 50%;
+            border: 1px solid #555;
+            flex-shrink: 0; /* Prevent icons from shrinking */
+        }
+        #p1Picks { left: 15px; top: 100px; }
+        #p2Picks { right: 15px; top: 15px; }
+
+        .button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: background-color 0.2s;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .button:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 200;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #1a1a2e;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #007bff;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 550px;
+            text-align: center;
+            box-shadow: 0 5px 25px rgba(0,128,255,0.3);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-content h2 {
+            color: #FFD700;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .modal-content p {
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        .modal-content .button {
+            margin-top: 10px;
+        }
+        .planet-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            text-align: left;
+            margin-top: 15px;
+        }
+        .planet-info-item {
+            background-color: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .planet-info-item h4 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #FFD700;
+        }
+        .planet-info-item p {
+            font-size: 0.85em;
+            margin-bottom: 4px;
+            color: #DDD;
+        }
+
+
+        #startScreen {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 150;
+            width: 90%;
+            max-width: 600px;
+        }
+        #startScreen h1 {
+            color:#FFD700; font-size:2.2em; margin-bottom:10px;
+        }
+        #startScreen p {
+            color:#BBB; font-size:1.1em; margin-bottom: 15px;
+        }
+        #mapThumbContainer {
+            display:none;
+        }
+        #modeSelectContainer {
+            display:none;
+        }
+        #modeDescription {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #CCC;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        #startGameBtn {
+            margin-top:10px;
+            padding: 12px 25px;
+            font-size: 1.1em;
+        }
+        #learnPlanetsBtn {
+            margin-top: 15px;
+        }
+
+
+        .map-thumb {
+            width: 120px;
+            height: 90px;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            position: relative;
+            background-color: #101520;
+        }
+        .map-thumb:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(0, 183, 255, 0.6);
+        }
+        .map-thumb.selected {
+            border-color: #FFD700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+        }
+        .map-thumb img, .map-thumb canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .map-thumb .map-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px;
+            font-size: 0.8em;
+            text-align: center;
+        }
+        /* 모바일 화면 대응 */
+        @media (max-width: 768px) {
+            #turnIndicator, #aliveCount {
+                font-size: 0.9em;
+                padding: 6px 10px;
+            }
+            /* Stack player picks on mobile, slightly below turn/alive indicators */
+            #p1Picks {
+                left: 15px;
+                top: 95px; /* Adjusted to be below aliveCount */
+                font-size: 0.8em;
+                padding: 4px 8px;
+            }
+            #p2Picks {
+                right: 15px;
+                top: 95px; /* Adjusted to match p1Picks vertical alignment */
+                font-size: 0.8em;
+                padding: 4px 8px;
+            }
+            #aliveCount { top: 50px; } /* Keep alive count below turn indicator */
+
+            #instructions { font-size: 0.7em; }
+            #powerBarContainer { width: 200px; height: 25px; }
+            #powerBarText { font-size: 0.8em; }
+            #gameMessages { font-size: 1em; padding: 8px 15px; }
+            .modal-content { padding: 15px; max-height: 70vh; }
+            #startScreen { padding: 15px; }
+            #startScreen h1 { font-size: 1.8em; }
+            #startScreen p { font-size: 0.9em; }
+            .map-thumb { width: 100px; height: 75px; }
+            .map-thumb .map-name { font-size: 0.7em; }
+            #startGameBtn, #learnPlanetsBtn { font-size: 1em; padding: 10px 20px; }
+            #draftInfoPanel { width: 90%; max-width: 300px; font-size: 0.85em; bottom: 15px; padding: 8px; min-height: 120px;}
+            .stat-bar-label { width: 40px; font-size: 0.85em; }
+            .stat-bar-value { width: 30px; font-size: 0.85em; }
+            .planet-info-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .map-thumb { width: 80px; height: 60px; }
+            .map-thumb .map-name { display: none; }
+            #draftInfoPanel { bottom: 10px; }
+            .modal-content h2 { font-size: 1.3em; }
+            .modal-content p { font-size: 0.9em; }
+            .button {padding: 8px 15px; font-size: 0.9em;}
+            /* Further adjustments for very small screens */
+            #turnIndicator, #aliveCount {
+                font-size: 0.8em;
+                padding: 5px 8px;
+            }
+            #p1Picks, #p2Picks {
+                font-size: 0.7em;
+                padding: 3px 6px;
+                top: 80px; /* Even higher for smaller screens */
+            }
+            #aliveCount { top: 40px; }
+            #instructions { font-size: 0.65em; right: 10px; bottom: 10px; }
+            #powerBarContainer { width: 180px; height: 22px; bottom: 10px; }
+            #powerBarText { font-size: 0.75em; }
+            #gameMessages { font-size: 0.9em; padding: 6px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="turnIndicator" style="display: none;">P1의 턴</div>
+    <div id="aliveCount" style="display: none;">P1: 3 | P2: 3</div>
+    <div id="instructions" style="display: none;">행성 클릭 후 반대방향으로 드래그 & 드롭. SPACE: 최대 파워. R: 재시작</div>
+
+    <div id="draftInfoPanel" class="ui-panel">
+        <h3 id="draftPlanetName">행성 이름</h3>
+        <p id="draftPlanetDesc">행성 설명이 여기에 표시됩니다.</p>
+        <div class="stat-bar-container">
+            <span class="stat-bar-label">크기:</span>
+            <div class="stat-bar"><div id="draftStatSize" class="stat-bar-fill"></div></div>
+            <span id="draftStatSizeValue" class="stat-bar-value">0</span>
+        </div>
+        <div class="stat-bar-container">
+            <span class="stat-bar-label">밀도:</span>
+            <div class="stat-bar"><div id="draftStatDensity" class="stat-bar-fill" style="background-color: #8A2BE2;"></div></div>
+            <span id="draftStatDensityValue" class="stat-bar-value">0</span>
+        </div>
+        <div class="stat-bar-container">
+            <span class="stat-bar-label">중력:</span>
+            <div class="stat-bar"><div id="draftStatGravity" class="stat-bar-fill" style="background-color: #00BFFF;"></div></div>
+            <span id="draftStatGravityValue" class="stat-bar-value">0</span>
+        </div>
+    </div>
+
+    <div id="powerBarContainer">
+        <div id="powerBarFill"></div>
+        <div id="powerBarText">파워: 0%</div>
+    </div>
+
+    <div id="gameMessages" style="display: none;">게임 메시지</div>
+
+    <div id="p1Picks" class="player-picks-ui" style="display:none;">P1 선택: </div>
+    <div id="p2Picks" class="player-picks-ui" style="display:none;">P2 선택: </div>
+    
+    <div id="endGameModal" class="modal">
+        <div class="modal-content">
+            <h2 id="winnerMessage">승리 메시지</h2>
+            <p id="congratsMessage">축하 메시지</p>
+            <button id="restartButton" class="button">다시 플레이 (R)</button>
+        </div>
+    </div>
+
+    <div id="planetInfoModal" class="modal">
+        <div class="modal-content">
+            <h2>행성 정보</h2>
+            <div id="planetInfoGrid" class="planet-info-grid">
+                </div>
+            <button id="closePlanetInfoBtn" class="button">닫기</button>
+        </div>
+    </div>
+
+    <div id="startScreen" class="ui-panel">
+        <h1>태양계 알까기</h1>
+        <p>우주를 배경으로 펼쳐지는 전략 알까기 게임! <br> 행성을 선택하고 상대방의 행성을 맵 밖으로 밀어내세요.</p>
+        <div id="mapThumbContainer"></div>
+        <div id="modeSelectContainer">
+            <label for="modeSelect">게임 모드:</label>
+            <select id="modeSelect" style="display:none;"> <option value="alggagi" selected>알까기</option>
+            </select>
+        </div>
+        <div id="modeDescription">
+            행성들을 이용해 상대방의 행성을 모두 맵 밖으로 밀어내세요.
+        </div>
+        <button id="startGameBtn" class="button">게임 시작</button>
+        <button id="learnPlanetsBtn" class="button">행성 정보 학습</button>
+    </div>
+
+    <script type="module">
+        // JavaScript 코드 전체를 여기에 통합
+        // 각 JS 파일의 내용을 순서대로 배치하고, import/export 제거
+
+        // --- Constants and Global Variables ---
+        let canvas, ctx;
+        let spaceBackground;
+        let currentGameState = null;
+        let gameRunningState = "menu"; // 초기 상태는 메뉴
+        let isDragging = false;
+        let dragJustStarted = false;
+        let selectedPlanet = null;
+        let startDragPos = { x: 0, y: 0 };
+        let trajectoryPoints = [];
+        let lastTime = 0;
+        let powerAmount = 0;
+        let isGameOver = false;
+        let gameLoop = null;
+        let draftState = null;
+        let draftHandleClick = null;
+        let draftHandleMouseMove = null;
+        let draftHandleKeyDown = null;
+        const pickedPlanets = { P1: [], P2: [] };
+        let npcPlanets = [];
+        let uiInstructions; // Correctly scoped
+
+        // --- physics.js content ---
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : {r:255, g:255, b:255};
+        }
+
+        class Particle {
+            constructor(x, y, color, size = 2, life = 30, vxOverride = null, vyOverride = null) {
+                this.x = x;
+                this.y = y;
+                this.vx = vxOverride !== null ? vxOverride : (Math.random() - 0.5) * 4;
+                this.vy = vyOverride !== null ? vyOverride : (Math.random() - 0.5) * 4;
+                this.color = color;
+                this.baseSize = size;
+                this.life = life;
+                this.age = 0;
+                this.maxLife = life;
+                this.damping = 0.97;
+            }
+
+            update(deltaTime) {
+                this.x += this.vx * (deltaTime * 60);
+                this.y += this.vy * (deltaTime * 60);
+                this.vx *= Math.pow(this.damping, deltaTime * 60);
+                this.vy *= Math.pow(this.damping, deltaTime * 60);
+                this.age++;
+                return this.age < this.maxLife;
+            }
+
+            draw(context) {
+                const progress = this.age / this.maxLife;
+                const alpha = Math.max(0, 1 - progress * progress);
+                const currentSize = Math.max(0.5, this.baseSize * (1 - progress * 0.7));
+
+                if (currentSize < 0.5 || alpha <= 0) return;
+
+                const rgb = hexToRgb(this.color);
+                context.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+                context.beginPath();
+                context.arc(this.x, this.y, currentSize, 0, Math.PI * 2);
+                context.fill();
+            }
+        }
+
+        function detectCollision(p1, p2) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const distSq = dx * dx + dy * dy;
+            const minDist = p1.size + p2.size;
+            return distSq < minDist * minDist;
+        }
+
+        function resolveCollision(p1, p2, dt) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist === 0) {
+                dist = 0.1;
+            }
+            
+            const nx = dx / dist;
+            const ny = dy / dist;
+            
+            const overlap = (p1.size + p2.size) - dist;
+            if (overlap > 0) {
+                const m1 = Math.max(0.1, p1.mass);
+                const m2 = Math.max(0.1, p2.mass);
+                const totalMass = m1 + m2;
+                
+                const p1Ratio = m2 / totalMass;
+                const p2Ratio = m1 / totalMass;
+                
+                p1.x -= nx * overlap * p1Ratio * 0.5;
+                p1.y -= ny * overlap * p1Ratio * 0.5;
+                p2.x += nx * overlap * p2Ratio * 0.5;
+                p2.y += ny * overlap * p2Ratio * 0.5;
+            }
+            
+            const m1 = Math.max(0.1, p1.mass);
+            const m2 = Math.max(0.1, p2.mass);
+            
+            const tx = -ny;
+            const ty = nx;
+            
+            const v1n = p1.vx * nx + p1.vy * ny;
+            const v1t = p1.vx * tx + p1.vy * ty;
+            const v2n = p2.vx * nx + p2.vy * ny;
+            const v2t = p2.vx * tx + p2.vy * ty;
+            
+            const e = 0.8;
+            
+            let v1nAfter = ((m1 - e * m2) * v1n + (1 + e) * m2 * v2n) / (m1 + m2);
+            let v2nAfter = ((m2 - e * m1) * v2n + (1 + e) * m1 * v1n) / (m1 + m2);
+            
+            p1.vx = v1nAfter * nx + v1t * tx;
+            p1.vy = v1nAfter * ny + v1t * ty;
+            p2.vx = v2nAfter * nx + v2t * ty;
+            p2.vy = v2nAfter * ny + v2t * ty;
+            
+            return {
+                x: p1.x + nx * p1.size,
+                y: p1.y + ny * p1.size,
+                energy: Math.abs(v1nAfter - v1n) + Math.abs(v2nAfter - v2n)
+            };
+        }
+
+        function applyGravity(p1, p2, dt, G = 0.06) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq === 0) return;
+            const dist = Math.sqrt(distSq);
+            const minGravDist = p1.size + p2.size + 2;
+            
+            if (dist > minGravDist) {
+                let gravityMult = 1;
+                if (p1.type === 'star') gravityMult *= 2.5;
+                if (p2.type === 'star') gravityMult *= 2.5;
+
+                let forceMagnitude = G * gravityMult * (p1.mass * p2.mass) / distSq;
+                const maxForceAllowed = 30;
+                forceMagnitude = Math.min(forceMagnitude, maxForceAllowed);
+                
+                const forceX = forceMagnitude * dx / dist;
+                const forceY = forceMagnitude * dy / dist;
+
+                if (p1.mass > 0) {
+                    p1.vx += forceX / p1.mass * dt;
+                    p1.vy += forceY / p1.mass * dt;
+                }
+                if (p2.mass > 0) {
+                    p2.vx -= forceX / p2.mass * dt;
+                    p2.vy -= forceY / p2.mass * dt;
+                }
+            }
+        }
+
+        function createCollisionParticles(x, y, energy, color1, color2) {
+            const particles = [];
+            const numParticles = Math.min(25, Math.max(8, Math.floor(energy * 2.5)));
+            
+            for (let i = 0; i < numParticles; i++) {
+                const speed = Math.random() * 2.5 + (energy * 0.35);
+                const angle = Math.random() * Math.PI * 2;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                
+                const color = Math.random() < 0.5 ? color1 : color2;
+                const size = Math.random() * 2.5 + 1.5 + (energy * 0.15);
+                const life = Math.random() * 15 + 25 + (energy * 6);
+                
+                particles.push(new Particle(x, y, color, size, life, vx, vy));
+            }
+            return particles;
+        }
+
+        function isOutOfBounds(planet, mapWidth, mapHeight, boundaryData) {
+            if (boundaryData.type === "circle") {
+                const centerX = boundaryData.center ? boundaryData.center.x * mapWidth : mapWidth / 2;
+                const centerY = boundaryData.center ? boundaryData.center.y * mapHeight : mapHeight / 2;
+                const radius = boundaryData.radius || Math.min(mapWidth, mapHeight) / 2 - 20;
+                const distFromCenter = Math.hypot(planet.x - centerX, planet.y - centerY);
+                return distFromCenter > radius + planet.size;
+            } else {
+                const margin = planet.size * 0.5;
+                return (
+                    planet.x < -margin ||
+                    planet.x > mapWidth + margin ||
+                    planet.y < -margin ||
+                    planet.y > mapHeight + margin
+                );
+            }
+        }
+
+        // --- planet.js content ---
+        class Planet {
+            constructor(x, y, data, owner = null) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.data = data;
+                this.size = data.size;
+                this.mass = data.mass;
+                this.baseColor = data.color;
+                this.owner = owner;
+                this.selected = false;
+                this.out = false;
+                
+                this.axialTilt = data.axialTiltDeg !== undefined ? data.axialTiltDeg * (Math.PI / 180) : (Math.random() * 45 - 22.5) * (Math.PI / 180);
+                this.rotationPeriodFactor = data.rotationPeriod !== undefined ? data.rotationPeriod : Math.random() * 0.009 + 0.001;
+                this.angle = Math.random() * Math.PI * 2;
+                this.rotationSpeed = this.rotationPeriodFactor * (Math.random() < 0.5 ? 1 : -1);
+
+                this.trails = [];
+                this.particles = [];
+                
+                this.planetType = data.type || "rocky_cratered";
+                this.textureColors = data.texture_colors;
+                this.textureCanvas = this.buildTexture();
+                this.ringCanvas = (this.planetType.includes("rings")) ? this.buildRings() : null;
+            }
+
+            _drawShadedCircle(textureCtx, planetSize, baseColorStr, lightAngle = Math.PI / 4, shadowIntensity = 0.3, highlightIntensity = 0.15) {
+                textureCtx.save();
+                textureCtx.beginPath();
+                textureCtx.arc(planetSize, planetSize, planetSize, 0, Math.PI * 2);
+                textureCtx.clip();
+
+                const shadowX = planetSize + Math.cos(lightAngle + Math.PI) * planetSize * 0.5;
+                const shadowY = planetSize + Math.sin(lightAngle + Math.PI) * planetSize * 0.5;
+                const shadowGrad = textureCtx.createRadialGradient(shadowX, shadowY, planetSize * 0.3, shadowX, shadowY, planetSize * 1.5);
+                shadowGrad.addColorStop(0, `rgba(0,0,0,${shadowIntensity})`);
+                shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                textureCtx.fillStyle = shadowGrad;
+                textureCtx.fillRect(0,0, planetSize*2, planetSize*2);
+                textureCtx.restore();
+
+                textureCtx.save();
+                textureCtx.beginPath();
+                textureCtx.arc(planetSize, planetSize, planetSize, 0, Math.PI * 2);
+                textureCtx.clip();
+
+                const highlightX = planetSize + Math.cos(lightAngle) * planetSize * 0.6;
+                const highlightY = planetSize + Math.sin(lightAngle) * planetSize * 0.6;
+                const highlightGrad = textureCtx.createRadialGradient(highlightX, highlightY, planetSize * 0.1, highlightX, highlightY, planetSize * 0.8);
+                highlightGrad.addColorStop(0, `rgba(255,255,255,${highlightIntensity})`);
+                highlightGrad.addColorStop(1, 'rgba(255,255,255,0)');
+                textureCtx.fillStyle = highlightGrad;
+                textureCtx.fillRect(0,0, planetSize*2, planetSize*2);
+                textureCtx.restore();
+            }
+
+            buildTexture() {
+                const d = this.size * 2;
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = d;
+                tempCanvas.height = d;
+                const texCtx = tempCanvas.getContext('2d');
+                const lightAngleForShading = Math.random() * Math.PI * 2;
+
+                texCtx.fillStyle = this.baseColor;
+                texCtx.beginPath();
+                texCtx.arc(this.size, this.size, this.size, 0, Math.PI * 2);
+                texCtx.fill();
+
+                switch (this.planetType) {
+                    case "star": this._createSunTexture(texCtx); break;
+                    case "earth-like":
+                        this._createEarthTexture(texCtx);
+                        this._drawShadedCircle(texCtx, this.size, this.textureColors.ocean, lightAngleForShading, 0.4, 0.2);
+                        break;
+                    case "gas_giant_bands_spot": this._createGasGiantTexture(texCtx, lightAngleForShading); break;
+                    case "rocky_cratered": case "rocky_cloudy": case "rocky_ice_caps":
+                        this._createRockyPlanetTexture(texCtx, lightAngleForShading);
+                        break;
+                    case "ice_giant_spot_clouds": case "ice_giant_rings":
+                        this._createIceGiantTexture(texCtx, lightAngleForShading);
+                        break;
+                    default: this._drawShadedCircle(texCtx, this.size, this.baseColor, lightAngleForShading); break;
+                }
+                return tempCanvas;
+            }
+
+            _createSunTexture(texCtx) {
+                texCtx.save();
+                texCtx.beginPath();
+                texCtx.arc(this.size, this.size, this.size, 0, Math.PI * 2);
+                texCtx.clip();
+                texCtx.fillStyle = this.textureColors.base;
+                texCtx.fill();
+
+                for (let i = 0; i < 5 + Math.random() * 5; i++) {
+                    const coronaColor = this.textureColors.corona[Math.floor(Math.random() * this.textureColors.corona.length)];
+                    const alpha = Math.random() * 0.3 + 0.1;
+                    const currentRadius = this.size * (1.1 + i * 0.08 + Math.sin(Date.now() * 0.0005 + i) * 0.05);
+                    const rgb = hexToRgb(coronaColor);
+                    texCtx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+                    texCtx.beginPath();
+                    texCtx.arc(this.size, this.size, currentRadius, 0, Math.PI * 2);
+                    texCtx.fill();
+                }
+                for (let i = 0; i < 50 + Math.random() * 50; i++) {
+                    const spotColor = this.textureColors.spots[Math.floor(Math.random() * this.textureColors.spots.length)];
+                    const spotAlpha = Math.random() * 0.4 + 0.2;
+                    const spotR = this.size * (Math.random() * 0.08 + 0.02);
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * this.size * 0.9;
+                    const spotX = this.size + Math.cos(angle) * dist;
+                    const spotY = this.size + Math.sin(angle) * dist;
+                    const rgbSpot = hexToRgb(spotColor);
+                    texCtx.fillStyle = `rgba(${rgbSpot.r},${rgbSpot.g},${rgbSpot.b},${spotAlpha})`;
+                    texCtx.beginPath();
+                    texCtx.arc(spotX, spotY, spotR, 0, Math.PI * 2);
+                    texCtx.fill();
+                }
+                texCtx.restore();
+            }
+
+            _createEarthTexture(texCtx) {
+                texCtx.fillStyle = this.textureColors.ocean;
+                texCtx.beginPath();
+                texCtx.arc(this.size, this.size, this.size, 0, Math.PI * 2);
+                texCtx.fill();
+                for (let i = 0; i < Math.random() * 3 + 4; i++) {
+                    texCtx.fillStyle = this.textureColors.land[Math.floor(Math.random() * this.textureColors.land.length)];
+                    texCtx.beginPath();
+                    const startAngle = Math.random() * Math.PI * 2;
+                    const continentSize = Math.random() * 0.5 + 0.3;
+                    for (let j = 0; j < 7; j++) {
+                        const angle = startAngle + (j / 7) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+                        const dist = this.size * (Math.random() * 0.4 * continentSize + 0.5 * continentSize);
+                        const px = this.size + Math.cos(angle) * dist;
+                        const py = this.size + Math.sin(angle) * dist;
+                        if (j === 0) texCtx.moveTo(px, py); else texCtx.lineTo(px, py);
+                    }
+                    texCtx.closePath();
+                    texCtx.fill();
+                }
+                const d = this.size * 2;
+                for (let i = 0; i < Math.random() * 10 + 10; i++) {
+                    const cloudX = Math.random() * d;
+                    const cloudY = Math.random() * d;
+                    const cloudW = this.size * (Math.random() * 0.6 + 0.2);
+                    const cloudH = this.size * (Math.random() * 0.3 + 0.1);
+                    if (Math.hypot(cloudX - this.size, cloudY - this.size) < this.size * 0.9) {
+                        texCtx.fillStyle = this.textureColors.cloud;
+                        texCtx.save();
+                        texCtx.translate(cloudX, cloudY);
+                        texCtx.rotate(Math.random() * Math.PI * 2);
+                        texCtx.beginPath();
+                        texCtx.ellipse(0, 0, cloudW / 2, cloudH / 2, 0, 0, Math.PI * 2);
+                        texCtx.fill();
+                        texCtx.restore();
+                    }
+                }
+            }
+
+            _createGasGiantTexture(texCtx, lightAngleForShading) {
+                texCtx.fillStyle = this.textureColors.base;
+                texCtx.beginPath();
+                texCtx.arc(this.size, this.size, this.size, 0, Math.PI * 2);
+                texCtx.fill();
+                const numBands = Math.floor(Math.random() * 5) + 5;
+                const d = this.size * 2;
+                for (let i = 0; i < numBands; i++) {
+                    const bandY = (i / numBands) * d + (Math.random() - 0.5) * (d / numBands) * 0.5;
+                    const bandH = this.size * (Math.random() * 0.15 + 0.1);
+                    const bandColorLight = this.textureColors.bands_light[Math.floor(Math.random()*this.textureColors.bands_light.length)];
+                    const bandColorDark = this.textureColors.bands_dark[Math.floor(Math.random()*this.textureColors.bands_dark.length)];
+                    const bandColor = Math.random() < 0.6 ? bandColorLight : bandColorDark;
+                    const alpha = Math.random() * 0.3 + 0.4;
+                    const rgbBand = hexToRgb(bandColor);
+                    texCtx.fillStyle = `rgba(${rgbBand.r},${rgbBand.g},${rgbBand.b},${alpha})`;
+                    texCtx.save();
+                    texCtx.beginPath();
+                    texCtx.arc(this.size, this.size, this.size, 0, Math.PI*2);
+                    texCtx.clip();
+                    texCtx.beginPath();
+                    texCtx.ellipse(this.size, bandY, this.size * 1.1, bandH, 0, 0, Math.PI * 2);
+                    texCtx.fill();
+                    texCtx.restore();
+                }
+                const spotW = this.size * (Math.random() * 0.2 + 0.3);
+                const spotH = this.size * (Math.random() * 0.1 + 0.2);
+                const spotX = this.size + (Math.random() - 0.5) * this.size * 0.4;
+                const spotY = this.size + (Math.random() - 0.5) * this.size * 0.6;
+                texCtx.fillStyle = this.textureColors.spot;
+                texCtx.beginPath();
+                texCtx.ellipse(spotX, spotY, spotW / 2, spotH / 2, Math.random() * 0.2 - 0.1, 0, Math.PI * 2);
+                texCtx.fill();
+                this._drawShadedCircle(texCtx, this.size, this.textureColors.base, lightAngleForShading, 0.5, 0.25);
+            }
+
+            _createRockyPlanetTexture(texCtx, lightAngleForShading) {
+                texCtx.fillStyle = this.textureColors.base;
+                texCtx.beginPath();
+                texCtx.arc(this.size, this.size, this.size, 0, Math.PI * 2);
+                texCtx.fill();
+                const numCraters = (this.planetType === "rocky_cratered") ? (Math.random() * 20 + 20) : (Math.random() * 10 + 5);
+                for (let i = 0; i < numCraters; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * this.size * 0.9;
+                    const r = this.size * (Math.random() * 0.1 + 0.05);
+                    const cx = this.size + Math.cos(angle) * dist;
+                    const cy = this.size + Math.sin(angle) * dist;
+                    const baseRgb = hexToRgb(this.textureColors.base);
+                    const craterDarkColor = this.textureColors.craters_dark || `rgb(${Math.max(0,baseRgb.r-40)},${Math.max(0,baseRgb.g-40)},${Math.max(0,baseRgb.b-40)})`;
+                    const craterLightColor = this.textureColors.craters_light || `rgb(${Math.min(255,baseRgb.r+30)},${Math.min(255,baseRgb.g+30)},${Math.min(255,baseRgb.b+30)})`;
+                    texCtx.fillStyle = craterDarkColor;
+                    texCtx.beginPath();
+                    texCtx.arc(cx, cy, r, 0, Math.PI * 2);
+                    texCtx.fill();
+                    texCtx.fillStyle = craterLightColor;
+                    texCtx.beginPath();
+                    texCtx.arc(cx - r*0.2, cy - r*0.2, r*0.8, 0, Math.PI * 2);
+                    texCtx.fill();
+                }
+                if (this.planetType === "rocky_cloudy" && this.textureColors.clouds) {
+                    for (let i = 0; i < 20 + Math.random() * 10; i++) {
+                        const cX = this.size + (Math.random() - 0.5) * (this.size * 2) * 0.8;
+                        const cY = this.size + (Math.random() - 0.5) * (this.size * 2) * 0.8;
+                        const cW = this.size * (Math.random() * 0.8 + 0.4);
+                        const cH = this.size * (Math.random() * 0.5 + 0.2);
+                        const cCol = this.textureColors.clouds[Math.floor(Math.random() * this.textureColors.clouds.length)];
+                        const cAlpha = Math.random()*0.3 + 0.2;
+                        const rgbCloud = hexToRgb(cCol);
+                        texCtx.fillStyle = `rgba(${rgbCloud.r},${rgbCloud.g},${rgbCloud.b},${cAlpha})`;
+                        texCtx.save();
+                        texCtx.translate(cX, cY);
+                        texCtx.rotate(Math.random() * Math.PI * 2);
+                        texCtx.beginPath();
+                        texCtx.ellipse(0, 0, cW/2, cH/2, 0, 0, Math.PI * 2);
+                        texCtx.fill();
+                        texCtx.filter = 'none';
+                        texCtx.restore();
+                    }
+                }
+                if (this.planetType === "rocky_ice_caps" && this.textureColors.ice_caps) {
+                    texCtx.fillStyle = this.textureColors.ice_caps;
+                    const capSize = this.size * (Math.random() * 0.15 + 0.2);
+                    texCtx.beginPath();
+                    texCtx.arc(this.size, this.size * 0.2, capSize, 0, Math.PI * 2);
+                    texCtx.fill();
+                    texCtx.beginPath();
+                    texCtx.arc(this.size, (this.size * 2) - this.size * 0.2, capSize, 0, Math.PI * 2);
+                    texCtx.fill();
+                }
+                this._drawShadedCircle(texCtx, this.size, this.textureColors.base, lightAngleForShading, 0.35, 0.18);
+            }
+
+            _createIceGiantTexture(texCtx, lightAngleForShading) {
+                texCtx.fillStyle = this.textureColors.body;
+                texCtx.beginPath();
+                texCtx.arc(this.size, this.size, this.size, 0, Math.PI * 2);
+                texCtx.fill();
+                const numFeatures = Math.floor(Math.random() * 5) + 8;
+                for (let i = 0; i < numFeatures; i++) {
+                    const featureColorData = this.textureColors.spots_clouds || this.textureColors.atmosphere || [this.baseColor];
+                    const featureColor = featureColorData[Math.floor(Math.random() * featureColorData.length)];
+                    const alpha = Math.random() * 0.2 + 0.1;
+                    const r = this.size * (Math.random() * 0.3 + 0.1);
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * this.size * 0.7;
+                    const fx = this.size + Math.cos(angle) * dist;
+                    const fy = this.size + Math.sin(angle) * dist;
+                    let finalFeatureColor;
+                    if (featureColor.startsWith('rgba')) {
+                        finalFeatureColor = featureColor.replace(/,\s*\d(\.\d+)?\)/, `,${alpha})`);
+                    } else {
+                        const rgbFeat = hexToRgb(featureColor);
+                        finalFeatureColor = `rgba(${rgbFeat.r},${rgbFeat.g},${rgbFeat.b},${alpha})`;
+                    }
+                    texCtx.fillStyle = finalFeatureColor;
+                    texCtx.filter = 'blur(1px)';
+                    texCtx.beginPath();
+                    texCtx.arc(fx, fy, r, 0, Math.PI * 2);
+                    texCtx.fill();
+                    texCtx.filter = 'none';
+                }
+                this._drawShadedCircle(texCtx, this.size, this.textureColors.body, lightAngleForShading, 0.4, 0.2);
+            }
+
+            buildRings() {
+                const ringWidth = this.size * 2.8;
+                const ringHeight = this.size * 0.8;
+                const tempRingCanvas = document.createElement('canvas');
+                tempRingCanvas.width = ringWidth;
+                tempRingCanvas.height = ringHeight;
+                const ringCtx = tempRingCanvas.getContext('2d');
+                const centerX = ringWidth / 2;
+                const centerY = ringHeight / 2;
+                const ringColors = this.planetType === "gas_giant_rings" ? this.textureColors.rings : (this.textureColors.rings_faint ? [this.textureColors.rings_faint] : ['rgba(200,200,200,0.3)']);
+                const numRingBands = this.planetType === "gas_giant_rings" ? (Math.floor(Math.random() * 3) + 3) : 1;
+                for (let i = 0; i < numRingBands; i++) {
+                    const bandColor = ringColors[Math.floor(Math.random() * ringColors.length)];
+                    const outerR_W = centerX * (1 - i * 0.12);
+                    const outerR_H = centerY * (1 - i * 0.12);
+                    const innerR_W = outerR_W * (0.85 - i * 0.05);
+                    const innerR_H = outerR_H * (0.85 - i * 0.05);
+                    if (outerR_W <= 0 || outerR_H <= 0) continue;
+                    ringCtx.fillStyle = bandColor;
+                    ringCtx.beginPath();
+                    ringCtx.ellipse(centerX, centerY, outerR_W, outerR_H, 0, 0, Math.PI * 2);
+                    if (innerR_W > 0 && innerR_H > 0) {
+                        ringCtx.ellipse(centerX, centerY, innerR_W, innerR_H, 0, Math.PI * 2, 0, true);
+                    }
+                    ringCtx.fill();
+                }
+                return tempRingCanvas;
+            }
+
+            draw(context) {
+                this.trails.forEach((trail, index) => {
+                    const alpha = 0.6 * trail.alpha;
+                    const trailRadius = Math.max(0.5, 1 + (this.size * 0.1) * (1 - (index / this.trails.length)));
+                    if (trailRadius < 0.5 || alpha < 0.05) return;
+                    const rgbBase = hexToRgb(this.baseColor);
+                    context.fillStyle = `rgba(${rgbBase.r},${rgbBase.g},${rgbBase.b},${alpha})`;
+                    context.beginPath();
+                    context.arc(trail.x, trail.y, trailRadius, 0, Math.PI * 2);
+                    context.fill();
+                });
+
+                context.save();
+                context.translate(this.x, this.y);
+                context.rotate(this.axialTilt);
+
+                if (this.ringCanvas) {
+                    context.save();
+                    context.rotate(this.angle * 0.6);
+                    context.drawImage(this.ringCanvas, -this.ringCanvas.width / 2, -this.ringCanvas.height / 2);
+                    context.restore();
+                }
+                
+                context.rotate(this.angle);
+                context.drawImage(this.textureCanvas, -this.size, -this.size);
+                context.restore();
+
+                if (this.owner && this.owner !== "NPC" && this.owner !== "SYSTEM") {
+                    context.fillStyle = this.owner === "P1" ? '#FF6464' : '#6464FF';
+                    const gameWorldWidth = currentGameState && currentGameState.map ? currentGameState.map.width : 1200;
+                    const gameWorldHeight = currentGameState && currentGameState.map ? currentGameState.map.height : 800;
+                    const scale = Math.min(canvas.width / gameWorldWidth, canvas.height / gameWorldHeight);
+                    const fontSize = Math.max(10, this.size * 0.4) / scale;
+
+                    context.font = `${fontSize}px 'Noto Sans KR'`;
+                    context.textAlign = "center";
+                    context.fillText(this.owner, this.x, this.y + this.size + (Math.max(12, this.size * 0.5) + 2) );
+                }
+                if (this.selected) {
+                    const pulseFactor = (1 + Math.sin(Date.now() * 0.008)) / 2;
+                    const pulseSizeAdd = 2 + 3 * pulseFactor;
+                    const pulseAlpha = 0.5 + 0.5 * pulseFactor;
+                    context.strokeStyle = `rgba(230, 230, 255, ${pulseAlpha})`;
+                    context.lineWidth = (2 + pulseFactor);
+                    context.beginPath();
+                    context.arc(this.x, this.y, this.size + pulseSizeAdd, 0, Math.PI * 2);
+                    context.stroke();
+                }
+                this.particles.forEach(p => p.draw(context));
+            }
+
+            update(deltaTime) {
+                this.angle = (this.angle + this.rotationSpeed * (deltaTime * 60)) % (Math.PI * 2);
+                // Apply friction: damping factor for velocity
+                const dampingFactor = 0.98; // Slightly increased damping for more noticeable friction
+                this.vx *= Math.pow(dampingFactor, deltaTime * 60);
+                this.vy *= Math.pow(dampingFactor, deltaTime * 60);
+
+                const prevX = this.x;
+                const prevY = this.y;
+                this.x += this.vx * (deltaTime * 60);
+                this.y += this.vy * (deltaTime * 60);
+
+                if (Math.hypot(this.vx, this.vy) > 0.15) {
+                    this.trails.push({ x: prevX, y: prevY, alpha: 1.0 });
+                }
+                this.trails = this.trails
+                    .map(t => ({ ...t, alpha: t.alpha - 0.03 * (deltaTime*60) }))
+                    .filter(t => t.alpha > 0.05);
+                if (this.trails.length > 15) {
+                    this.trails.shift();
+                }
+                this.particles = this.particles.filter(p => p.update(deltaTime));
+            }
+        }
+
+        // --- maps.js content (Simplified) ---
+        const maps = [
+            {
+                id: "basic", name: "기본 맵", description: "넓은 우주에서 행성들을 자유롭게 충돌시켜보세요.",
+                width: 1200, height: 800, boundaries: { type: "rectangle", padding: 0 },
+                spawnPoints: {
+                    p1: [{ x: 0.2, y: 0.3 }, { x: 0.2, y: 0.5 }, { x: 0.2, y: 0.7 }],
+                    p2: [{ x: 0.8, y: 0.3 }, { x: 0.8, y: 0.5 }, { x: 0.8, y: 0.7 }]
+                }, obstacles: []
+            }
+        ];
+        
+        function getMapById(id) { return maps.find(map => map.id === id) || maps[0]; }
+        
+        function setupMapSelection(mapThumbContainer, modeSelect, modeDescription, onMapSelectCallback) {
+            if (onMapSelectCallback) onMapSelectCallback(maps[0]);
+            if(modeDescription) modeDescription.textContent = '행성들을 이용해 상대방의 행성을 모두 맵 밖으로 밀어내세요.';
+        }
+
+        function initializeMapObjects(map, gameMode, width, height) {
+            return { mapObjects: [] };
+        }
+        
+        // --- game-modes.js content (Simplified) ---
+        const GAME_MODES = { ALGGAGI: 'alggagi' };
+        class AlggagiMode {
+            constructor() { this.name = GAME_MODES.ALGGAGI; this.p1PlanetsCount = 0; this.p2PlanetsCount = 0; this.ui = { aliveCount: null }; }
+            initialize(planets, ui) { this.ui.aliveCount = ui.aliveCount; this.updatePlanetCounts(planets); }
+            updatePlanetCounts(planets) {
+                this.p1PlanetsCount = planets.filter(p => p.owner === 'P1' && !p.out).length;
+                this.p2PlanetsCount = planets.filter(p => p.owner === 'P2' && !p.out).length;
+                if (this.ui.aliveCount) {
+                    this.ui.aliveCount.textContent = `P1: ${this.p1PlanetsCount} | P2: ${this.p2PlanetsCount}`;
+                    this.ui.aliveCount.style.display = 'block';
+                }
+            }
+            update(planets, mapData) {
+                this.updatePlanetCounts(planets.filter(p => p.owner === 'P1' || p.owner === 'P2'));
+                let winner = null;
+                if (this.p1PlanetsCount === 0 && this.p2PlanetsCount > 0) winner = 'P2';
+                else if (this.p2PlanetsCount === 0 && this.p1PlanetsCount > 0) winner = 'P1';
+                return { winner, gameData: { p1Count: this.p1PlanetsCount, p2Count: this.p2PlanetsCount } };
+            }
+            // This function is no longer used for turn progression based on physics settling.
+            // It's kept for potential future game mode specific logic if needed.
+            shouldEndTurn(planetsOwnedByPlayers, isCurrentlyDraggingGlobal, wasDragJustStartedThisFrame, shotFiredThisTurnGlobal) {
+                return false;
+            }
+            showUI() { return { turnIndicator: true, aliveCount: true, powerBar: true, playerPicks: true, instructionsUI: true }; }
+            getEndGameMessage(winner) { return { winnerMsg: `${winner} 승리!`, congratsMsg: `${winner === 'P1' ? '1' : '2'}번 플레이어가 상대방의 모든 행성을 맵 밖으로 밀어냈습니다!` }; }
+        }
+        
+        function createGameMode(modeName) {
+            return new AlggagiMode();
+        }
+
+        // --- game-renderer.js content (Simplified) ---
+        function createSpaceBackground(width, height) {
+            if (width <= 0 || height <= 0) {
+                console.warn(`Attempted to create space background with zero dimensions: ${width}x${height}`);
+                const errCanvas = document.createElement('canvas');
+                errCanvas.width = 1; errCanvas.height = 1;
+                return errCanvas;
+            }
+            const bgCanvas = document.createElement('canvas'); bgCanvas.width = width; bgCanvas.height = height;
+            const bgCtx = bgCanvas.getContext('2d');
+            const gradient = bgCtx.createLinearGradient(0, 0, width, height);
+            gradient.addColorStop(0, '#000018'); gradient.addColorStop(0.5, '#000020'); gradient.addColorStop(1, '#000028');
+            bgCtx.fillStyle = gradient; bgCtx.fillRect(0, 0, width, height);
+            for (let i = 0; i < 500; i++) {
+                const x = Math.random() * width; const y = Math.random() * height;
+                const radius = Math.random() * 0.8 + 0.1; const brightness = Math.floor(Math.random() * 70 + 185);
+                bgCtx.fillStyle = `rgb(${brightness},${brightness},${brightness})`;
+                bgCtx.beginPath(); bgCtx.arc(x, y, radius, 0, Math.PI * 2); bgCtx.fill();
+            }
+            for (let i = 0; i < 40; i++) {
+                const x = Math.random() * width; const y = Math.random() * height;
+                const radius = Math.random() * 1.2 + 0.4;
+                const color = Math.random() < 0.5 ? `rgba(255,255,255,0.7)` : (Math.random() < 0.5 ? `rgba(200,220,255,0.6)` : `rgba(255,220,180,0.6)`);
+                bgCtx.fillStyle = color; bgCtx.beginPath(); bgCtx.arc(x, y, radius, 0, Math.PI * 2); bgCtx.fill();
+                const glow = bgCtx.createRadialGradient(x, y, radius, x, y, radius * 2.5);
+                glow.addColorStop(0, color.replace(/,\s*\d(\.\d+)?\)/, ',0.5)')); glow.addColorStop(1, 'rgba(255,255,255,0)');
+                bgCtx.fillStyle = glow; bgCtx.beginPath(); bgCtx.arc(x, y, radius * 2.5, 0, Math.PI * 2); bgCtx.fill();
+            }
+            for (let i = 0; i < 2; i++) {
+                const x = Math.random() * width; const y = Math.random() * height;
+                const radius = Math.random() * 120 + 40;
+                const hue = Math.floor(Math.random() * 360); const color = `hsla(${hue}, 60%, 40%, 0.04)`;
+                const cloudGrad = bgCtx.createRadialGradient(x, y, radius * 0.15, x, y, radius);
+                cloudGrad.addColorStop(0, color); cloudGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                bgCtx.fillStyle = cloudGrad; bgCtx.save(); bgCtx.translate(x, y); bgCtx.rotate(Math.random() * Math.PI);
+                bgCtx.scale(1, 0.5 + Math.random() * 0.7); bgCtx.beginPath(); bgCtx.arc(0, 0, radius, 0, Math.PI * 2); bgCtx.restore(); bgCtx.fill();
+            }
+            return bgCanvas;
+        }
+        function drawMapBoundaries(ctx, boundaries, width, height) {
+            ctx.save();
+            const padding = boundaries.padding || 0;
+            ctx.fillStyle = 'rgba(0, 128, 255, 0.05)';
+            ctx.fillRect(0, 0, width, 1); ctx.fillRect(0, height - 1, width, 1); ctx.fillRect(0, 0, 1, height); ctx.fillRect(width - 1, 0, 1, height);
+            ctx.strokeStyle = 'rgba(0, 128, 255, 0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 4]);
+            ctx.strokeRect(padding, padding, width - padding * 2, height - padding * 2);
+            ctx.restore();
+        }
+        function drawPlanets(ctx, planetsToDraw, width, height, selectedPlanet) {
+            const sortedPlanets = [...planetsToDraw].sort((a, b) => (a.size * a.mass) - (b.size * b.mass));
+            let selPlanet = null;
+            sortedPlanets.forEach(planet => {
+                if (selectedPlanet && planet === selectedPlanet) selPlanet = planet;
+                else if(!planet.out) planet.draw(ctx);
+            });
+            if (selPlanet && !selPlanet.out) {
+                ctx.save(); ctx.shadowColor = '#FFEB3B'; ctx.shadowBlur = 28;
+                selPlanet.draw(ctx);
+                ctx.restore();
+            }
+        }
+        
+        function drawTrajectory(ctx, points, color = 'rgba(255, 255, 255, 0.6)') {
+            if (!points || points.length < 2) return;
+            ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 2.0; ctx.setLineDash([6, 3]);
+            ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            ctx.stroke();
+            if (points.length > 2) {
+                const lastPoint = points[points.length - 1];
+                ctx.beginPath(); ctx.fillStyle = color.replace(/,\s*\d(\.\d+)?\)/, ',0.7)');
+                ctx.arc(lastPoint.x, lastPoint.y, 5, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        }
+        function updatePowerBar(powerBarFill, powerBarText, powerAmount) {
+            if (!powerBarFill || !powerBarText) return;
+            const percentage = powerAmount * 100;
+            powerBarFill.style.width = `${percentage}%`;
+            powerBarText.textContent = `파워: ${Math.round(percentage)}%`;
+            let color;
+            if (percentage < 33) color = '#4CAF50'; else if (percentage < 66) color = '#FFC107'; else color = '#F44336';
+            powerBarFill.style.backgroundColor = color;
+        }
+        function showEndGameModal(winner, message) {
+            const modal = document.getElementById('endGameModal');
+            const winnerMessage = document.getElementById('winnerMessage');
+            const congratsMessage = document.getElementById('congratsMessage');
+            if (modal && winnerMessage && congratsMessage) {
+                winnerMessage.textContent = winner; congratsMessage.textContent = message; modal.style.display = 'flex';
+            }
+        }
+        function hideEndGameModal() { const modal = document.getElementById('endGameModal'); if (modal) modal.style.display = 'none'; }
+
+        // --- game-initialization.js content (Simplified) ---
+        const planets_data_template = [
+            {"name": "태양", "color": '#FFFF00', "size": 60, "mass": 150, "id": "sun", "texture_colors": { base: '#FFD700', corona: ['#FFFACD', '#FFE4B5', '#FFDEAD'], spots: ['#FFA500', '#FF8C00']}, "desc": "불타는 항성. 강력한 중력원.", "type": "star", axialTiltDeg: 7.25, orbitalPeriod: 0, density: 1.41, surfaceGravity: 27.9, rotationPeriod: 0.0001}, // 태양 자전 매우 느리게 (거의 고정된 것처럼)
+            {"name": "수성", "color": '#A9A9A9', "size": 10, "mass": 0.06, "id": "mercury", "texture_colors": { base: '#808080', craters_dark: '#606060', craters_light: '#A0A0A0'}, "desc": "작고 빠른 행성. 표면은 크레이터.", "type": "rocky_cratered", axialTiltDeg: 0.03, orbitalPeriod: 88, density: 5.43, surfaceGravity: 0.38, rotationPeriod: 0.005},
+            {"name": "금성", "color": '#F5DEB3', "size": 20, "mass": 0.82, "id": "venus", "texture_colors": { base: '#EEDC82', clouds: ['#FFF8DC', '#FAF0E6', '#FFEBCD']}, "desc": "두꺼운 황산 구름. 매우 느린 역방향 자전.", "type": "rocky_cloudy", axialTiltDeg: 177.4, orbitalPeriod: 225, density: 5.24, surfaceGravity: 0.90, rotationPeriod: 0.01},
+            {"name": "지구", "color": '#6495ED', "size": 22, "mass": 1.0, "id": "earth", "texture_colors": { ocean: '#4682B4', land: ['#228B22', '#8FBC8F', '#D2B48C'], cloud: 'rgba(240,248,255,0.7)'}, "desc": "생명체가 살아가는 우리의 행성.", "type": "earth-like", axialTiltDeg: 23.44, orbitalPeriod: 365, density: 5.51, surfaceGravity: 1.00, rotationPeriod: 0.003},
+            {"name": "화성", "color": '#CD5C5C', "size": 15, "mass": 0.11, "id": "mars", "texture_colors": { base: '#BC8F8F', dust: ['#D2B48C', '#CD853F'], ice_caps: '#FFFFFF', craters: '#A0522D'}, "desc": "붉은 사막과 극관. 지구와 비슷한 자전축 기울기.", "type": "rocky_ice_caps", axialTiltDeg: 25.19, orbitalPeriod: 687, density: 3.93, surfaceGravity: 0.38, rotationPeriod: 0.0031},
+            {"name": "목성", "color": '#DEB887', "size": 45, "mass": 318, "id": "jupiter", "texture_colors": { base: '#D2B48C', bands_light: ['#F5DEB3', '#FFEBCD'], bands_dark: ['#A0522D', '#8B4513'], spot: '#C19A6B'}, "desc": "태양계에서 가장 큰 가스 행성. 빠른 자전.", "type": "gas_giant_bands_spot", axialTiltDeg: 3.13, orbitalPeriod: 4333, density: 1.33, surfaceGravity: 2.53, rotationPeriod: 0.0015},
+            {"name": "토성", "color": '#F0E68C', "size": 40, "mass": 95, "id": "saturn", "texture_colors": { body: '#EEE8AA', rings: ['rgba(210,180,140,0.7)', 'rgba(240,220,190,0.6)', 'rgba(188,150,120,0.5)']}, "desc": "아름다운 고리. 빠른 자전과 적당한 기울기.", "type": "gas_giant_rings", axialTiltDeg: 26.73, orbitalPeriod: 10759, density: 0.69, surfaceGravity: 1.07, rotationPeriod: 0.0016},
+            {"name": "천왕성", "color": '#AFEEEE', "size": 30, "mass": 14.5, "id": "uranus", "texture_colors": { body: '#ADD8E6', atmosphere: ['#B0E0E6', '#AFEEEE'], rings_faint: 'rgba(200,220,220,0.3)'}, "desc": "옆으로 누워 자전하는 독특한 얼음 행성.", "type": "ice_giant_rings", axialTiltDeg: 97.77, orbitalPeriod: 30687, density: 1.27, surfaceGravity: 0.89, rotationPeriod: 0.0025},
+            {"name": "해왕성", "color": '#6495ED', "size": 28, "mass": 17, "id": "neptune", "texture_colors": { body: '#4169E1', spots_clouds: ['#5F9EA0', '#000080', 'rgba(173,216,230,0.4)']}, "desc": "짙푸른 색의 얼음 거인. 강한 바람.", "type": "ice_giant_spot_clouds", axialTiltDeg: 28.32, orbitalPeriod: 60190, density: 1.64, surfaceGravity: 1.14, rotationPeriod: 0.0023},
+        ];
+        let uiStartScreen, uiMapThumbContainer, uiModeSelect, uiModeDescription, uiStartGameBtn;
+        let uiDraftInfoPanel, uiDraftPlanetName, uiDraftPlanetDesc, uiDraftStatSize, uiDraftStatDensity, uiDraftStatGravity;
+        let uiDraftStatSizeValue, uiDraftStatDensityValue, uiDraftStatGravityValue;
+        let selectedMapData = getMapById("basic");
+        let selectedGameModeType = GAME_MODES.ALGGAGI;
+
+        function initializeStartScreenUI(onGameStartCallback) {
+            uiStartScreen = document.getElementById('startScreen');
+            uiStartGameBtn = document.getElementById('startGameBtn');
+            uiDraftInfoPanel = document.getElementById('draftInfoPanel');
+            uiDraftPlanetName = document.getElementById('draftPlanetName');
+            uiDraftPlanetDesc = document.getElementById('draftPlanetDesc');
+            uiDraftStatSize = document.getElementById('draftStatSize');
+            uiDraftStatDensity = document.getElementById('draftStatDensity');
+            uiDraftStatGravity = document.getElementById('draftStatGravity');
+            uiDraftStatSizeValue = document.getElementById('draftStatSizeValue');
+            uiDraftStatDensityValue = document.getElementById('draftStatDensityValue');
+            uiDraftStatGravityValue = document.getElementById('draftStatGravityValue');
+            uiInstructions = document.getElementById('instructions'); // Correctly assigned
+            uiModeDescription = document.getElementById('modeDescription');
+            
+            if(uiModeDescription) uiModeDescription.textContent = '행성들을 이용해 상대방의 행성을 모두 맵 밖으로 밀어내세요.';
+
+            const learnPlanetsBtn = document.getElementById('learnPlanetsBtn');
+            const planetInfoModal = document.getElementById('planetInfoModal');
+            const closePlanetInfoBtn = document.getElementById('closePlanetInfoBtn');
+            const planetInfoGrid = document.getElementById('planetInfoGrid');
+
+            if (learnPlanetsBtn && planetInfoModal && closePlanetInfoBtn && planetInfoGrid) {
+                learnPlanetsBtn.addEventListener('click', () => {
+                    planetInfoGrid.innerHTML = '';
+                    planets_data_template.forEach(p => {
+                        const item = document.createElement('div');
+                        item.className = 'planet-info-item';
+                        item.innerHTML = `
+                            <h4>${p.name} (${p.type === 'star' ? '항성' : '행성'})</h4>
+                            <p>크기 (반지름): ${p.size}</p>
+                            <p>질량 (지구=1): ${p.mass}</p>
+                            <p>밀도 (g/cm³): ${p.density !== undefined ? p.density.toFixed(2) : 'N/A'}</p>
+                            <p>표면 중력 (지구=1): ${p.surfaceGravity !== undefined ? p.surfaceGravity.toFixed(2) : 'N/A'}</p>
+                            <p>자전축 기울기: ${p.axialTiltDeg !== undefined ? p.axialTiltDeg.toFixed(2) + '°' : 'N/A'}</p>
+                            <p>공전 주기 (지구일): ${p.orbitalPeriod !== undefined ? p.orbitalPeriod : 'N/A'}</p>
+                            <p>특징: ${p.desc}</p>
+                        `;
+                        planetInfoGrid.appendChild(item);
+                    });
+                    planetInfoModal.style.display = 'flex';
+                });
+                closePlanetInfoBtn.addEventListener('click', () => {
+                    planetInfoModal.style.display = 'none';
+                });
+            }
+
+
+            uiStartGameBtn.addEventListener('click', () => {
+                if (onGameStartCallback) onGameStartCallback(selectedMapData, selectedGameModeType);
+                uiStartScreen.style.display = 'none';
+            });
+            uiStartScreen.style.display = 'block';
+        }
+
+        function showPlanetInfoForDraft(planetData, mouseX, mouseY) {
+            if (!uiDraftInfoPanel || !planetData) return;
+            uiDraftPlanetName.textContent = planetData.name;
+            uiDraftPlanetDesc.textContent = planetData.desc;
+            
+            const maxDisplaySize = 60;
+            const sizePercentage = (planetData.size / maxDisplaySize) * 100;
+            if(uiDraftStatSize) uiDraftStatSize.style.width = `${Math.min(100, sizePercentage)}%`;
+            if(uiDraftStatSizeValue) uiDraftStatSizeValue.textContent = planetData.size;
+            
+            const maxDisplayDensity = 6;
+            const densityPercentage = (planetData.density / maxDisplayDensity) * 100;
+            if(uiDraftStatDensity) uiDraftStatDensity.style.width = `${Math.min(100, densityPercentage)}%`;
+            if(uiDraftStatDensityValue) uiDraftStatDensityValue.textContent = planetData.density !== undefined ? planetData.density.toFixed(2) : 'N/A';
+
+            const maxDisplayGravity = 3;
+            const gravityPercentage = (planetData.surfaceGravity / maxDisplayGravity) * 100;
+            if(uiDraftStatGravity) uiDraftStatGravity.style.width = `${Math.min(100, gravityPercentage)}%`;
+            if(uiDraftStatGravityValue) uiDraftStatGravityValue.textContent = planetData.surfaceGravity !== undefined ? planetData.surfaceGravity.toFixed(2) : 'N/A';
+            
+            uiDraftInfoPanel.style.display = 'block';
+        }
+        function initializeDraftModeSetup(draftCallback) {
+            const planetsList = planets_data_template.map(p => ({ ...p, isSelected: false }));
+            const draftOrder = ["P1", "P2", "P2", "P1", "P1", "P2"]; let currentIndex = 0;
+            const localPickedPlanets = { P1: [], P2: [] };
+            const selectPlanetForDraft = (planetId) => {
+                if (currentIndex >= draftOrder.length) return;
+                const currentPlayer = draftOrder[currentIndex];
+                const planetIndex = planetsList.findIndex(p => p.id === planetId);
+                if (planetIndex === -1) return;
+                const planet = planetsList[planetIndex];
+                if (planet.isSelected) return;
+                planet.isSelected = true; localPickedPlanets[currentPlayer].push(planet);
+                currentIndex++;
+                updatePlayerPicksUI(localPickedPlanets);
+                if (currentIndex >= draftOrder.length) {
+                    const allSelectedIds = [...localPickedPlanets.P1, ...localPickedPlanets.P2].map(p => p.id);
+                    const unselectedPlanetsData = planetsList.filter(p => !allSelectedIds.includes(p.id)).slice(0, 3);
+
+                    setTimeout(() => {
+                        if(uiDraftInfoPanel) uiDraftInfoPanel.style.display = 'none';
+                        // Fix: Pass unselectedPlanetsData instead of unselectedNpcData
+                        if (draftCallback) draftCallback(localPickedPlanets, unselectedPlanetsData);
+                    }, 500); return;
+                }
+                showNextPlayerPromptUI(draftOrder[currentIndex]);
+            };
+            return {
+                getAllPlanets: () => planetsList,
+                getAvailablePlanets: () => planetsList.filter(p => !p.isSelected),
+                getCurrentPlayer: () => currentIndex < draftOrder.length ? draftOrder[currentIndex] : null,
+                selectPlanet: selectPlanetForDraft
+            };
+        }
+        function showNextPlayerPromptUI(player) {
+            const gameMessagesUI = document.getElementById('gameMessages');
+            if (gameMessagesUI) {
+                gameMessagesUI.textContent = `${player === 'P1' ? '1' : '2'}번 플레이어가 행성을 선택해주세요.`;
+                gameMessagesUI.style.display = 'block';
+            }
+        }
+        function updatePlayerPicksUI(currentPicks) {
+            const p1PicksUI = document.getElementById('p1Picks'); const p2PicksUI = document.getElementById('p2Picks');
+            if (p1PicksUI) {
+                p1PicksUI.innerHTML = 'P1 선택: ';
+                currentPicks.P1.forEach(planet => p1PicksUI.appendChild(createPlanetIconForUI(planet)));
+                if (currentPicks.P1.length > 0) p1PicksUI.style.display = 'flex'; else p1PicksUI.style.display = 'none';
+            }
+            if (p2PicksUI) {
+                p2PicksUI.innerHTML = 'P2 선택: ';
+                currentPicks.P2.forEach(planet => p2PicksUI.appendChild(createPlanetIconForUI(planet)));
+                if (currentPicks.P2.length > 0) p2PicksUI.style.display = 'flex'; else p2PicksUI.style.display = 'none';
+            }
+        }
+        function createPlanetIconForUI(planet) {
+            const icon = document.createElement('img'); icon.title = planet.name;
+            const tempCanvas = document.createElement('canvas'); tempCanvas.width = 25; tempCanvas.height = 25;
+            const ctxIcon = tempCanvas.getContext('2d');
+            ctxIcon.clearRect(0, 0, 25, 25);
+            ctxIcon.beginPath(); ctxIcon.arc(12.5, 12.5, 12, 0, Math.PI * 2); ctxIcon.fillStyle = planet.color; ctxIcon.fill();
+            if (planet.type === "gas_giant_rings") {
+                ctxIcon.save(); ctxIcon.scale(1, 0.4); ctxIcon.beginPath();
+                ctxIcon.arc(12.5, 12.5 / 0.4, 16, 0, Math.PI * 2); ctxIcon.arc(12.5, 12.5 / 0.4, 10, 0, Math.PI * 2, true);
+                ctxIcon.fillStyle = 'rgba(210,180,140,0.6)'; ctxIcon.fill(); ctxIcon.restore();
+            } else if (planet.type === "star") {
+                const gradient = ctxIcon.createRadialGradient(12.5, 12.5, 10, 12.5, 12.5, 16);
+                gradient.addColorStop(0, 'rgba(255,215,0,0.8)'); gradient.addColorStop(1, 'rgba(255,165,0,0)');
+                ctxIcon.beginPath(); ctxIcon.arc(12.5, 12.5, 16, 0, Math.PI * 2); ctxIcon.fillStyle = gradient; ctxIcon.fill();
+            }
+            icon.src = tempCanvas.toDataURL(); return icon;
+        }
+        
+        function initializeGameState(mapData, gameModeType, draftedPlanetsData, unselectedNpcData) {
+            const uiElements = {
+                turnIndicator: document.getElementById('turnIndicator'), aliveCount: document.getElementById('aliveCount'),
+                gameMessages: document.getElementById('gameMessages'), powerBarContainer: document.getElementById('powerBarContainer'),
+                powerBarFill: document.getElementById('powerBarFill'), powerBarText: document.getElementById('powerBarText'),
+                p1PicksUI: document.getElementById('p1Picks'), p2PicksUI: document.getElementById('p2Picks'),
+                instructionsUI: uiInstructions // Use the correctly scoped variable
+            };
+            const gameModeObj = createGameMode(gameModeType);
+            const gamePlanets = [];
+            
+            const placePlanet = (planetData, owner, spawnPoint, isNpc = false) => {
+                let x, y;
+                const maxPlacementAttempts = isNpc ? 200 : 50;
+                let attempts = 0;
+                let placedSuccessfully = false;
+                const ownSize = planetData.size;
+
+                while (!placedSuccessfully && attempts < maxPlacementAttempts) {
+                    attempts++;
+                    const margin = ownSize + 10;
+
+                    if (isNpc) {
+                        if (planetData.type === 'star' && owner === 'NPC') {
+                            x = mapData.width / 2;
+                            y = mapData.height / 2;
+                        } else {
+                            x = margin + Math.random() * (mapData.width - margin * 2);
+                            y = margin + Math.random() * (mapData.height - margin * 2);
+                        }
+                    } else {
+                        x = spawnPoint.x * mapData.width;
+                        y = spawnPoint.y * mapData.height;
+                    }
+
+                    x = Math.max(margin, Math.min(x, mapData.width - margin));
+                    y = Math.max(margin, Math.min(y, mapData.height - margin));
+                    
+                    let overlaps = false;
+                    for (const existingPlanet of gamePlanets) {
+                        const distBetween = Math.hypot(x - existingPlanet.x, y - existingPlanet.y);
+                        const minSafeDist = ownSize + existingPlanet.size + 20;
+                        if (distBetween < minSafeDist) {
+                            overlaps = true;
+                            break;
+                        }
+                    }
+
+                    if (!overlaps) {
+                        placedSuccessfully = true;
+                    } else if (!isNpc) {
+                        console.warn(`Player planet ${planetData.name} (${owner}) might overlap at spawn. Placing it anyway.`);
+                        placedSuccessfully = true;
+                    }
+                }
+                if (!placedSuccessfully && isNpc) {
+                    console.warn(`Could not find a non-overlapping position for NPC planet ${planetData.name}. Placing at fallback near center.`);
+                    x = mapData.width / 2 + (Math.random() - 0.5) * mapData.width * 0.05;
+                    y = mapData.height / 2 + (Math.random() - 0.5) * mapData.height * 0.05;
+                }
+                return new Planet(x, y, planetData, owner);
+            };
+            
+            const sunData = planets_data_template.find(p => p.id === 'sun');
+            const isSunPickedByPlayer = (draftedPlanetsData.P1.some(p => p.id === 'sun') || draftedPlanetsData.P2.some(p => p.id === 'sun'));
+            if (sunData && !isSunPickedByPlayer) {
+                gamePlanets.push(placePlanet(sunData, "NPC", null, true));
+            }
+
+
+            if (draftedPlanetsData.P1) {
+                mapData.spawnPoints.p1.forEach((sp, idx) => {
+                    if (idx < draftedPlanetsData.P1.length) gamePlanets.push(placePlanet(draftedPlanetsData.P1[idx], 'P1', sp));
+                });
+            }
+            if (draftedPlanetsData.P2) {
+                mapData.spawnPoints.p2.forEach((sp, idx) => {
+                    if (idx < draftedPlanetsData.P2.length) gamePlanets.push(placePlanet(draftedPlanetsData.P2[idx], 'P2', sp));
+                });
+            }
+            
+            npcPlanets = [];
+            if (unselectedNpcData) {
+                unselectedNpcData.forEach(npcData => {
+                    if (npcData.id !== 'sun') {
+                        const npcPlanet = placePlanet(npcData, "NPC", null, true);
+                        npcPlanets.push(npcPlanet);
+                    }
+                });
+                gamePlanets.push(...npcPlanets);
+            }
+            
+            gameModeObj.initialize(gamePlanets.filter(p => p.owner === 'P1' || p.owner === 'P2'), uiElements);
+            
+            const uiConfig = gameModeObj.showUI();
+            if (uiConfig.turnIndicator && uiElements.turnIndicator) { uiElements.turnIndicator.textContent = 'P1의 턴'; uiElements.turnIndicator.style.display = 'block'; }
+            if (uiConfig.instructionsUI && uiElements.instructionsUI) uiElements.instructionsUI.style.display = 'block';
+            
+            return { planets: gamePlanets, gameMode: gameModeObj, ui: uiElements, map: {width: mapData.width, height: mapData.height, boundaries: mapData.boundaries}, currentTurn: 'P1', awaitingPhysicsSettling: false };
+        }
+
+        // --- game-main.js content (initGame, update, event handlers etc.) ---
+        function renderDraftSelectionScreen(mapData, onCompleteCallback) {
+            draftState = initializeDraftModeSetup((picked, unselected) => {
+                pickedPlanets.P1 = [...picked.P1];
+                pickedPlanets.P2 = [...picked.P2];
+                if (onCompleteCallback) onCompleteCallback(picked, unselected);
+            });
+            let cursorPlanetId = draftState.getAllPlanets()[0]?.id || null;
+            const columns = 3; const planetRenderSize = 50;
+            const gridSpacingX = planetRenderSize * 2.2; const gridSpacingY = planetRenderSize * 2.5;
+            
+            const draftDisplayWidth = Math.min(mapData.width, 800);
+
+            // Calculate startX to center the grid of planets
+            // The total width of the planet display area is (columns - 1) * gridSpacingX + 2 * planetRenderSize
+            // We want to center this within draftDisplayWidth
+            const totalGridContentWidth = (columns - 1) * gridSpacingX + (planetRenderSize * 2);
+            const startX = (draftDisplayWidth - totalGridContentWidth) / 2 + planetRenderSize; // Add planetRenderSize to get center of first planet
+            const startY = 180;
+
+            draftHandleClick = function(e) {
+                if (!draftState || draftState.getCurrentPlayer() === null) return;
+                const mousePos = getMousePos(e);
+                const allPlanets = draftState.getAllPlanets();
+
+                const scale = Math.min(canvas.width / draftDisplayWidth, canvas.height / mapData.height);
+                const offsetX = (canvas.width - draftDisplayWidth * scale) / 2;
+                const offsetY = (canvas.height - mapData.height * scale) / 2;
+
+                for (let i = 0; i < allPlanets.length; i++) {
+                    const planet = allPlanets[i]; const column = i % columns; const row = Math.floor(i / columns);
+                    // Use the calculated startX for positioning
+                    const drawX = offsetX + (startX + column * gridSpacingX) * scale;
+                    const drawY = offsetY + (startY + row * gridSpacingY) * scale;
+                    const scaledRenderSize = planetRenderSize * 0.8 * scale;
+
+                    if (Math.hypot(mousePos.x * (canvas.width / canvas.getBoundingClientRect().width) - drawX ,
+                                   mousePos.y * (canvas.height / canvas.getBoundingClientRect().height) - drawY) < scaledRenderSize && !planet.isSelected) {
+                        cursorPlanetId = planet.id; draftState.selectPlanet(planet.id); break;
+                    }
+                }
+            };
+            draftHandleMouseMove = function(e) {
+                if (!draftState || draftState.getCurrentPlayer() === null) return;
+                const mousePos = getMousePos(e);
+                const allPlanets = draftState.getAllPlanets();
+                let foundPlanet = false;
+
+                const scale = Math.min(canvas.width / draftDisplayWidth, canvas.height / mapData.height);
+                const offsetX = (canvas.width - draftDisplayWidth * scale) / 2;
+                const offsetY = (canvas.height - mapData.height * scale) / 2;
+
+                for (let i = 0; i < allPlanets.length; i++) {
+                    const planet = allPlanets[i]; const column = i % columns; const row = Math.floor(i / columns);
+                    // Use the calculated startX for positioning
+                    const drawX = offsetX + (startX + column * gridSpacingX) * scale;
+                    const drawY = offsetY + (startY + row * gridSpacingY) * scale;
+                    const scaledRenderSize = planetRenderSize * 0.8 * scale;
+
+                    if (Math.hypot(mousePos.x * (canvas.width / canvas.getBoundingClientRect().width) - drawX,
+                                   mousePos.y * (canvas.height / canvas.getBoundingClientRect().height) - drawY) < scaledRenderSize) {
+                        canvas.style.cursor = planet.isSelected ? 'not-allowed' : 'pointer';
+                        if (!planet.isSelected) { showPlanetInfoForDraft(planet, e.clientX, e.clientY); cursorPlanetId = planet.id; foundPlanet = true; }
+                        break;
+                    }
+                }
+                if (!foundPlanet) { canvas.style.cursor = 'default'; if(uiDraftInfoPanel) uiDraftInfoPanel.style.display = 'none'; }
+            };
+            draftHandleKeyDown = function(e) {
+                if (!draftState || draftState.getCurrentPlayer() === null) return;
+                const allPlanets = draftState.getAllPlanets();
+                const currentIndex = allPlanets.findIndex(p => p.id === cursorPlanetId); if (currentIndex === -1) return;
+                let nextIndex = currentIndex; let row = Math.floor(currentIndex / columns); let col = currentIndex % columns;
+                const numRows = Math.ceil(allPlanets.length / columns);
+                switch (e.key) {
+                    case 'ArrowLeft': col = (col - 1 + columns) % columns; break;
+                    case 'ArrowRight': col = (col + 1) % columns; break;
+                    case 'ArrowUp': row = (row - 1 + numRows) % numRows; break;
+                    case 'ArrowDown': row = (row + 1) % numRows; break;
+                    case ' ': case 'Enter': e.preventDefault(); const planet = allPlanets.find(p => p.id === cursorPlanetId); if (planet && !planet.isSelected) draftState.selectPlanet(planet.id); return;
+                    default: return;
+                }
+                nextIndex = row * columns + col;
+                if (nextIndex >= allPlanets.length) {
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextIndex = Math.min(allPlanets.length - 1, row * columns + (allPlanets.length % columns) -1) ;
+                    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') nextIndex = Math.min(allPlanets.length - 1, row * columns);
+                }
+                if (nextIndex < 0) nextIndex = 0;
+
+
+                cursorPlanetId = allPlanets[nextIndex].id;
+                const cursorPlanet = allPlanets.find(p => p.id === cursorPlanetId);
+                if (cursorPlanet && !cursorPlanet.isSelected) {
+                    showPlanetInfoForDraft(cursorPlanet, window.innerWidth / 2, window.innerHeight - 150);
+                }
+            };
+            canvas.addEventListener('click', draftHandleClick); canvas.addEventListener('mousemove', draftHandleMouseMove); window.addEventListener('keydown', draftHandleKeyDown);
+            
+            function renderDraftLoop() {
+                if (!draftState || draftState.getCurrentPlayer() === null) {
+                    canvas.removeEventListener('click', draftHandleClick); canvas.removeEventListener('mousemove', draftHandleMouseMove); window.removeEventListener('keydown', draftHandleKeyDown);
+                    draftHandleClick = null; draftHandleMouseMove = null; draftHandleKeyDown = null;
+                    return;
+                }
+                if (!spaceBackground || spaceBackground.width === 0 || spaceBackground.height === 0) {
+                    requestAnimationFrame(renderDraftLoop); return;
+                }
+                ctx.drawImage(spaceBackground, 0, 0);
+                
+                ctx.save();
+                const draftWorldWidth = draftDisplayWidth;
+                const draftWorldHeight = mapData.height;
+                const scale = Math.min(canvas.width / draftWorldWidth, canvas.height / draftWorldHeight);
+                const offsetX = (canvas.width - draftWorldWidth * scale) / 2;
+                const offsetY = (canvas.height - draftWorldHeight * scale) / 2;
+                ctx.translate(offsetX, offsetY);
+                ctx.scale(scale, scale);
+
+                ctx.fillStyle = '#FFFFFF'; ctx.font = '32px "Noto Sans KR", sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('행성 선택', draftWorldWidth / 2, 80 );
+                const currentPlayer = draftState.getCurrentPlayer();
+                ctx.fillStyle = currentPlayer === 'P1' ? '#FF6464' : '#6464FF'; ctx.font = '24px "Noto Sans KR", sans-serif';
+                ctx.fillText(`${currentPlayer === 'P1' ? '1' : '2'}번 플레이어 차례`, draftWorldWidth / 2, 120);
+
+                const allPlanets = draftState.getAllPlanets();
+                // Use the calculated startX for positioning
+                const draftLoopStartX = startX;
+                const draftLoopStartY = 180;
+
+
+                for (let i = 0; i < allPlanets.length; i++) {
+                    const planet = allPlanets[i]; const column = i % columns; const row = Math.floor(i / columns);
+                    // x is the center of the planet
+                    const x = draftLoopStartX + column * gridSpacingX;
+                    const y = draftLoopStartY + row * gridSpacingY;
+                    
+                    ctx.save();
+                    if (planet.id === cursorPlanetId) {
+                        ctx.shadowColor = planet.isSelected ? '#888888' : '#FFD700'; ctx.shadowBlur = 24;
+                        ctx.lineWidth = 4; ctx.strokeStyle = planet.isSelected ? '#888888' : '#FFD700';
+                        ctx.beginPath(); ctx.arc(x, y, planetRenderSize * 0.75, 0, Math.PI * 2); ctx.stroke();
+                    }
+                    if (planet.isSelected) ctx.globalAlpha = 0.4;
+                    
+                    const tempPlanet = new Planet(x,y,planet);
+                    tempPlanet.size = planetRenderSize * 0.7;
+                    tempPlanet.textureCanvas = tempPlanet.buildTexture();
+                    // Draw image centered on x,y
+                    ctx.drawImage(tempPlanet.textureCanvas, x - tempPlanet.size, y - tempPlanet.size);
+
+                    if (planet.isSelected) {
+                        const playerWhoPicked = pickedPlanets.P1.some(p => p.id === planet.id) ? 'P1' : (pickedPlanets.P2.some(p => p.id === planet.id) ? 'P2' : null);
+                        if(playerWhoPicked){
+                            ctx.strokeStyle = playerWhoPicked === 'P1' ? '#FF6464' : '#6464FF';
+                            ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, planetRenderSize * 0.65, 0, Math.PI * 2); ctx.stroke();
+                        }
+                        ctx.strokeStyle = '#FF4444'; ctx.lineWidth = 3; ctx.beginPath();
+                        ctx.moveTo(x - planetRenderSize * 0.25, y - planetRenderSize * 0.25); ctx.lineTo(x + planetRenderSize * 0.25, y + planetRenderSize * 0.25);
+                        ctx.moveTo(x + planetRenderSize * 0.25, y - planetRenderSize * 0.25); ctx.lineTo(x - planetRenderSize * 0.25, y + planetRenderSize * 0.25);
+                        ctx.stroke();
+                    }
+                    ctx.fillStyle = planet.isSelected ? 'rgba(255,255,255,0.5)' : '#FFFFFF'; ctx.font = `15px "Noto Sans KR", sans-serif`;
+                    ctx.textAlign = 'center'; ctx.fillText(planet.name, x, y + planetRenderSize + 15);
+                    ctx.restore();
+                }
+                ctx.restore();
+                requestAnimationFrame(renderDraftLoop);
+            }
+            renderDraftLoop();
+        }
+
+        function initializeMainGame(mapData, gameModeType, draftedPlanetsData, unselectedNpcData) {
+            currentGameState = initializeGameState(mapData, gameModeType, draftedPlanetsData, unselectedNpcData);
+            lastTime = performance.now(); isGameOver = false; gameRunningState = "play";
+            // shotFiredThisTurn is no longer needed for turn progression, but can be kept for other logic if desired.
+            // currentGameState.awaitingPhysicsSettling is also no longer used for turn progression.
+            if (gameLoop) cancelAnimationFrame(gameLoop);
+            gameLoop = requestAnimationFrame(updateGame);
+        }
+
+        function updateGame(currentTime) {
+            if (gameRunningState !== "play" || !currentGameState) {
+                if(isGameOver && gameRunningState === "end") { }
+                else if (gameRunningState === "menu" || gameRunningState === "draft") { }
+                else if (!currentGameState && gameRunningState === "play_init") { }
+                else {
+                    if (gameLoop) cancelAnimationFrame(gameLoop); gameLoop = null;
+                }
+                return;
+            }
+            
+            const deltaTime = (currentTime - lastTime) / 1000; lastTime = currentTime;
+            
+            if (!spaceBackground || spaceBackground.width === 0 || spaceBackground.height === 0) {
+                console.warn("Background not ready, skipping draw.");
+                gameLoop = requestAnimationFrame(updateGame); return;
+            }
+            ctx.drawImage(spaceBackground, 0, 0);
+
+            ctx.save();
+            const gameWorldWidth = currentGameState.map.width;
+            const gameWorldHeight = currentGameState.map.height;
+            const scale = Math.min(canvas.width / gameWorldWidth, canvas.height / gameWorldHeight);
+            const offsetX = (canvas.width - gameWorldWidth * scale) / 2;
+            const offsetY = (canvas.height - gameWorldHeight * scale) / 2;
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
+
+            drawMapBoundaries(ctx, currentGameState.map.boundaries, gameWorldWidth, gameWorldHeight);
+            updatePhysics(deltaTime); // Physics update happens regardless of turn state
+            renderGameObjects(currentTime);
+            
+            if (isDragging && selectedPlanet) {
+                const mousePos = getMousePos(window.lastMouseEvent || {clientX: canvas.width/2 / scale - offsetX/scale, clientY: canvas.height/2 / scale - offsetY/scale});
+                drawCueLine(ctx, selectedPlanet, mousePos.x, mousePos.y, powerAmount);
+                if (trajectoryPoints.length > 0) {
+                    let trajectoryColor = powerAmount < 0.33 ? 'rgba(76, 175, 80, 0.6)' : powerAmount < 0.66 ? 'rgba(255, 193, 7, 0.6)' : 'rgba(244, 67, 54, 0.6)';
+                    drawTrajectory(ctx, trajectoryPoints, trajectoryColor);
+                }
+            }
+            ctx.restore();
+
+            const result = currentGameState.gameMode.update(currentGameState.planets, currentGameState.map);
+            if (result.winner && !isGameOver) {
+                isGameOver = true; gameRunningState = "end"; endGame(result.winner); return;
+            }
+            
+            // Removed previous turn logic based on physics settling.
+            // Turn transition is now solely handled by handleMouseUp/touchend.
+
+            if (dragJustStarted) {
+                dragJustStarted = false;
+            }
+            gameLoop = requestAnimationFrame(updateGame);
+        }
+
+        function updatePhysics(deltaTime) {
+            const planets = currentGameState.planets;
+            planets.forEach(planet => {
+                // Only update physics for planets that are not out of bounds
+                if (!planet.out) {
+                    planet.update(deltaTime);
+                }
+            });
+
+            planets.forEach(planet => {
+                // Only check for out of bounds if the planet is not already out
+                if (!planet.out && isOutOfBounds(planet, currentGameState.map.width, currentGameState.map.height, currentGameState.map.boundaries)) {
+                    planet.out = true; // Mark as out of bounds
+                    // Optionally, stop its velocity immediately if it goes out
+                    planet.vx = 0;
+                    planet.vy = 0;
+                    // Clear its trails once it's out
+                    planet.trails = [];
+
+                    if (planet.owner && planet.owner !== "NPC" && planet.owner !== "SYSTEM" && currentGameState.ui && currentGameState.ui.gameMessages) {
+                        currentGameState.ui.gameMessages.textContent = `${planet.owner}의 행성이 이탈!`;
+                        currentGameState.ui.gameMessages.style.display = 'block';
+                        setTimeout(() => { if(currentGameState && currentGameState.ui && currentGameState.ui.gameMessages) currentGameState.ui.gameMessages.style.display = 'none'; }, 2000);
+                    }
+                }
+            });
+
+            for (let i = 0; i < planets.length; i++) {
+                const p1 = planets[i];
+                // Skip physics calculations for planets that are out of bounds
+                if (p1.out) continue;
+                
+                for (let j = i + 1; j < planets.length; j++) {
+                    const p2 = planets[j];
+                    // Skip physics calculations for planets that are out of bounds
+                    if (p2.out) continue;
+                    
+                    applyGravity(p1, p2, deltaTime);
+                    if (detectCollision(p1, p2)) {
+                        const collisionResult = resolveCollision(p1, p2, deltaTime);
+                        const collisionParticles = createCollisionParticles(collisionResult.x, collisionResult.y, collisionResult.energy, p1.baseColor, p2.baseColor);
+                        if (p1.particles.length < 100) p1.particles.push(...collisionParticles.slice(0, Math.floor(collisionParticles.length / 2)));
+                        if (p2.particles.length < 100) p2.particles.push(...collisionParticles.slice(Math.floor(collisionParticles.length / 2)));
+                    }
+                }
+            }
+        }
+        function renderGameObjects(currentTime) {
+            drawPlanets(ctx, currentGameState.planets, currentGameState.map.width, currentGameState.map.height, selectedPlanet);
+        }
+        function shootPlanet(planet, directionX, directionY, power) {
+            const MAX_FORCE = 25;
+            const force = power * MAX_FORCE;
+            planet.vx = directionX * force; planet.vy = directionY * force;
+        }
+        
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (e.clientX - rect.left);
+            const canvasY = (e.clientY - rect.top);
+        
+            if (gameRunningState === "draft" || !currentGameState || !currentGameState.map) {
+                return {
+                    x: canvasX * (canvas.width / rect.width),
+                    y: canvasY * (canvas.height / rect.height)
+                };
+            }
+            
+            const gameWorldWidth = currentGameState.map.width;
+            const gameWorldHeight = currentGameState.map.height;
+            
+            const currentCanvasWidth = canvas.width;
+            const currentCanvasHeight = canvas.height;
+            
+            const scaleToFit = Math.min(currentCanvasWidth / gameWorldWidth, currentCanvasHeight / gameWorldHeight);
+            const offsetX = (currentCanvasWidth - gameWorldWidth * scaleToFit) / 2;
+            const offsetY = (currentCanvasHeight - gameWorldHeight * scaleToFit) / 2;
+
+            const worldX = (canvasX - offsetX) / scaleToFit;
+            const worldY = (canvasY - offsetY) / scaleToFit;
+            
+            return { x: worldX, y: worldY };
+        }
+
+
+        function drawCueLine(ctx, planet, endX, endY, power) { // Updated function signature
+            if (!planet) return;
+            const startX = planet.x; const startY = planet.y;
+            const dirX = startX - endX;
+            const dirY = startY - endY;
+            const dist = Math.hypot(dirX, dirY);
+
+            if (dist < 1) {
+                trajectoryPoints = [];
+                return;
+            }
+            
+            const normalizedX = dirX / dist; const normalizedY = dirY / dist;
+            
+            const lineLength = Math.min(dist, 50 + power * 100);
+            const targetX = startX + normalizedX * lineLength;
+            const targetY = startY + normalizedY * lineLength;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(targetX, targetY);
+            
+            let lineColor;
+            if (power < 0.33) lineColor = 'rgba(0, 255, 0, 0.7)';
+            else if (power < 0.66) lineColor = 'rgba(255, 255, 0, 0.7)';
+            else lineColor = 'rgba(255, 0, 0, 0.7)';
+            
+            ctx.strokeStyle = lineColor;
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(targetX, targetY, 3 + power * 3, 0, Math.PI * 2);
+            ctx.fillStyle = lineColor;
+            ctx.fill();
+            
+            ctx.restore();
+            calculateTrajectory(planet, normalizedX, normalizedY, power);
+        }
+        function calculateTrajectory(planet, dirX, dirY, power) {
+            const points = [{x: planet.x, y: planet.y}];
+            const steps = 20;
+            const maxDistance = 350 * power; // Max distance for trajectory prediction
+
+            for (let i = 1; i <= steps; i++) {
+                const t = i / steps;
+                const distance = maxDistance * t;
+                // Simple parabolic trajectory for visual cue, not actual physics
+                const gravityEffect = 0.5 * Math.pow(t, 2) * 60 * power; // Exaggerated gravity for visual
+                
+                const posX = planet.x + dirX * distance;
+                const posY = planet.y + dirY * distance + gravityEffect;
+                points.push({x: posX, y: posY});
+            }
+            trajectoryPoints = points;
+        }
+        function handleMouseDown(e) {
+            // Allow interaction even if planets are moving from previous turn,
+            // but prevent new drag if already dragging.
+            if (isGameOver || gameRunningState !== "play" || isDragging) return;
+
+            const mousePos = getMousePos(e);
+            const currentPlayer = currentGameState.currentTurn;
+
+            // Find a selectable planet for the current player
+            for (const planet of currentGameState.planets) {
+                // Only allow selecting planets that belong to the current player and are not out of bounds
+                if (planet.owner === currentPlayer && !planet.out && Math.hypot(mousePos.x - planet.x, mousePos.y - planet.y) <= planet.size) {
+                    selectedPlanet = planet;
+                    selectedPlanet.selected = true;
+                    isDragging = true;
+                    dragJustStarted = true;
+                    startDragPos = { x: mousePos.x, y: mousePos.y };
+                    if (currentGameState.ui && currentGameState.ui.powerBarContainer) currentGameState.ui.powerBarContainer.style.display = 'block';
+                    powerAmount = 0;
+                    if (currentGameState.ui && currentGameState.ui.powerBarFill && currentGameState.ui.powerBarText) {
+                        updatePowerBar(currentGameState.ui.powerBarFill, currentGameState.ui.powerBarText, powerAmount);
+                    }
+                    canvas.style.cursor = 'grabbing';
+                    break; // Found a planet, stop searching
+                }
+            }
+        }
+        function handleMouseMove(e) {
+            window.lastMouseEvent = e;
+            // Only respond to mouse move if currently dragging
+            if (!isDragging || !selectedPlanet || isGameOver || gameRunningState !== "play") return;
+
+            const mousePos = getMousePos(e);
+            const dragDistance = Math.hypot(mousePos.x - selectedPlanet.x, mousePos.y - selectedPlanet.y);
+            const maxDragDistance = 220;
+            powerAmount = Math.min(1, dragDistance / maxDragDistance);
+            if (currentGameState.ui && currentGameState.ui.powerBarFill && currentGameState.ui.powerBarText) {
+                updatePowerBar(currentGameState.ui.powerBarFill, currentGameState.ui.powerBarText, powerAmount);
+            }
+            // Update trajectory preview during drag
+            const dirX = selectedPlanet.x - mousePos.x;
+            const dirY = selectedPlanet.y - mousePos.y;
+            const dist = Math.hypot(dirX, dirY);
+            if (dist > 1) { // Only calculate if there's a meaningful drag
+                const normalizedX = dirX / dist;
+                const normalizedY = dirY / dist;
+                calculateTrajectory(selectedPlanet, normalizedX, normalizedY, powerAmount);
+            } else {
+                trajectoryPoints = []; // Clear trajectory if no drag
+            }
+        }
+        function handleMouseUp(e) {
+            // Only respond to mouse up if currently dragging
+            if (!isDragging || !selectedPlanet || isGameOver || gameRunningState !== "play") return;
+
+            const mousePos = getMousePos(e);
+            const dirX = selectedPlanet.x - mousePos.x;
+            const dirY = selectedPlanet.y - mousePos.y;
+            const dist = Math.hypot(dirX, dirY);
+
+            if (dist > 10 && powerAmount > 0.05) { // A valid shot was made
+                const normalizedX = dirX / dist;
+                const normalizedY = dirY / dist;
+                shootPlanet(selectedPlanet, normalizedX, normalizedY, powerAmount);
+                
+                // Immediately switch turn after a valid shot
+                switchTurn();
+
+            } else { // Invalid shot (too short drag or low power)
+                // No shot fired, no turn change
+                if (selectedPlanet) selectedPlanet.selected = false;
+            }
+            
+            // Reset dragging state regardless of shot validity
+            isDragging = false;
+            trajectoryPoints = [];
+            canvas.style.cursor = 'default';
+            if (currentGameState.ui && currentGameState.ui.powerBarContainer) {
+                currentGameState.ui.powerBarContainer.style.display = 'none';
+            }
+            // Reset selected planet visual state
+            if (selectedPlanet) {
+                selectedPlanet.selected = false;
+                selectedPlanet = null;
+            }
+            powerAmount = 0; // Reset power display
+        }
+        function handleKeyDown(e) {
+            if (isGameOver && (e.key === 'r' || e.key === 'R')) { restartGame(); return; }
+            if (gameRunningState !== "play" || !currentGameState || !isDragging || !selectedPlanet) return; // Only apply if currently dragging a planet
+            
+            if (e.code === 'Space') {
+                e.preventDefault(); // Prevent scrolling if spacebar is pressed
+                powerAmount = 1; // Set power to max
+                if (currentGameState.ui && currentGameState.ui.powerBarFill && currentGameState.ui.powerBarText) {
+                    updatePowerBar(currentGameState.ui.powerBarFill, currentGameState.ui.powerBarText, powerAmount);
+                }
+                // Recalculate trajectory with max power
+                const mousePos = getMousePos(window.lastMouseEvent || {clientX: selectedPlanet.x, clientY: selectedPlanet.y});
+                const dirX = selectedPlanet.x - mousePos.x;
+                const dirY = selectedPlanet.y - mousePos.y;
+                const dist = Math.hypot(dirX, dirY);
+                if (dist > 1) {
+                    const normalizedX = dirX / dist;
+                    const normalizedY = dirY / dist;
+                    calculateTrajectory(selectedPlanet, normalizedX, normalizedY, powerAmount);
+                }
+            }
+        }
+
+        /**
+         * Switches the current player's turn and updates UI.
+         */
+        function switchTurn() {
+            if (!currentGameState) return;
+
+            currentGameState.currentTurn = currentGameState.currentTurn === 'P1' ? 'P2' : 'P1';
+            
+            if (currentGameState.ui && currentGameState.ui.turnIndicator) {
+                currentGameState.ui.turnIndicator.textContent = `${currentGameState.currentTurn}의 턴`;
+            } else {
+                console.warn("Turn indicator UI element not found in switchTurn");
+            }
+
+            // Reset selected planet and power for the new turn
+            // These are also handled in handleMouseUp, but good to ensure here.
+            if (selectedPlanet) {
+                selectedPlanet.selected = false;
+                selectedPlanet = null;
+            }
+            powerAmount = 0;
+            if (currentGameState.ui && currentGameState.ui.powerBarContainer) {
+                currentGameState.ui.powerBarContainer.style.display = 'none';
+            }
+
+            // Show a brief message for the new turn
+            if (currentGameState.ui && currentGameState.ui.gameMessages) {
+                currentGameState.ui.gameMessages.textContent = `${currentGameState.currentTurn}의 턴입니다!`;
+                currentGameState.ui.gameMessages.style.display = 'block';
+                setTimeout(() => {
+                    if(currentGameState && currentGameState.ui && currentGameState.ui.gameMessages)
+                        currentGameState.ui.gameMessages.style.display = 'none';
+                }, 1500); // Show message for 1.5 seconds
+            }
+        }
+
+        function endGame(winner) {
+            if (!currentGameState) return;
+            const endResult = currentGameState.gameMode.getEndGameMessage(winner);
+            showEndGameModal(endResult.winnerMsg, endResult.congratsMsg);
+            if (currentGameState.gameMode.cleanup) currentGameState.gameMode.cleanup();
+        }
+        function restartGame() {
+            hideEndGameModal();
+            if (uiStartScreen) uiStartScreen.style.display = 'block';
+            if (gameLoop) { cancelAnimationFrame(gameLoop); gameLoop = null; }
+            isDragging = false; dragJustStarted = false; selectedPlanet = null; trajectoryPoints = []; powerAmount = 0; isGameOver = false;
+            currentGameState = null; gameRunningState = "menu";
+            pickedPlanets.P1 = []; pickedPlanets.P2 = []; npcPlanets = [];
+            // shotFiredThisTurn is not strictly needed anymore for turn logic, but reset for consistency.
+            // currentGameState.awaitingPhysicsSettling is also not strictly needed anymore for turn logic.
+            
+            const UIsToHide = ['turnIndicator', 'aliveCount', 'instructions', 'powerBarContainer', 'gameMessages', 'p1Picks', 'p2Picks', 'draftInfoPanel'];
+            UIsToHide.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+            
+            selectedMapData = getMapById("basic");
+            selectedGameModeType = GAME_MODES.ALGGAGI;
+        }
+
+        function initGame() {
+            canvas = document.getElementById('gameCanvas'); if (!canvas) { console.error("Canvas not found!"); return; }
+            ctx = canvas.getContext('2d'); if (!ctx) { console.error("2D context failed!"); return; }
+
+            function handleResize() {
+                const gameWorldWidth = selectedMapData.width;
+                const gameWorldHeight = selectedMapData.height;
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
+
+                let scale = 0;
+                if (gameWorldWidth > 0 && gameWorldHeight > 0) {
+                    const scaleX = windowWidth / gameWorldWidth;
+                    const scaleY = windowHeight / gameWorldHeight;
+                    scale = Math.min(scaleX, scaleY) * 0.95; // Add a small margin
+                }
+                scale = Math.max(scale, 0.01); // Ensure scale is not zero or negative
+
+                canvas.width = Math.max(1, Math.floor(gameWorldWidth * scale));
+                canvas.height = Math.max(1, Math.floor(gameWorldHeight * scale));
+                
+                if (canvas.width > 0 && canvas.height > 0) {
+                    spaceBackground = createSpaceBackground(canvas.width, canvas.height);
+                } else {
+                    console.error("Canvas dimensions are zero or negative after resize attempt.");
+                    const tempBg = document.createElement('canvas'); tempBg.width = 1; tempBg.height = 1;
+                    spaceBackground = tempBg;
+                }
+
+                if (gameRunningState === "play" && currentGameState && !isGameOver) {
+                    if (gameLoop) cancelAnimationFrame(gameLoop);
+                    updateGame(performance.now());
+                } else if (gameRunningState === "draft" && draftState) {
+                    // Draft loop handles its own rendering
+                } else if (gameRunningState === "menu" || isGameOver) {
+                    if (spaceBackground && spaceBackground.width > 0 && spaceBackground.height > 0) {
+                        ctx.drawImage(spaceBackground, 0, 0);
+                    }
+                }
+            }
+            handleResize();
+
+            const UIsToHide = ['turnIndicator', 'aliveCount', 'instructions', 'powerBarContainer', 'gameMessages', 'p1Picks', 'p2Picks', 'endGameModal', 'draftInfoPanel'];
+            UIsToHide.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+            
+            initializeStartScreenUI((mapData, gameModeType) => {
+                if (uiStartScreen) uiStartScreen.style.display = 'none';
+                gameRunningState = "draft";
+                renderDraftSelectionScreen(mapData, (draftedPlanetsResult, unselectedNpcResult) => {
+                    if (uiDraftInfoPanel) uiDraftInfoPanel.style.display = 'none';
+                    const p1PicksUI = document.getElementById('p1Picks'); const p2PicksUI = document.getElementById('p2Picks');
+                    const instructionsUI = document.getElementById('instructions'); // Use the global uiInstructions
+                    if (p1PicksUI) p1PicksUI.style.display = 'flex'; if (p2PicksUI) p2PicksUI.style.display = 'flex';
+                    if (instructionsUI) instructionsUI.style.display = 'block';
+                    gameRunningState = "play_init";
+                    initializeMainGame(mapData, gameModeType, draftedPlanetsResult, unselectedNpcResult);
+                });
+            });
+
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (e.touches.length > 0) handleMouseDown(e.touches[0]); }, { passive: false });
+            canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (e.touches.length > 0) handleMouseMove(e.touches[0]); }, { passive: false });
+            canvas.addEventListener('touchend', (e) => { e.preventDefault(); if (e.changedTouches.length > 0) handleMouseUp(e.changedTouches[0]); }, { passive: false });
+
+
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('resize', handleResize);
+            const restartBtn = document.getElementById('restartButton');
+            if (restartBtn) restartBtn.addEventListener('click', restartGame);
+        }
+
+        document.addEventListener('DOMContentLoaded', initGame);
+
+    </script>
+</body>
+</html>
