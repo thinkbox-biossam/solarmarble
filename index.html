@@ -606,7 +606,7 @@
             const v2n = p2.vx * nx + p2.vy * ny;
             const v2t = p2.vx * tx + p2.vy * ty;
             
-            const e = 0.8;
+            const e = 0.8; // Coefficient of restitution: how bouncy collisions are
             
             let v1nAfter = ((m1 - e * m2) * v1n + (1 + e) * m2 * v2n) / (m1 + m2);
             let v2nAfter = ((m2 - e * m1) * v2n + (1 + e) * m1 * v1n) / (m1 + m2);
@@ -623,26 +623,29 @@
             };
         }
 
-        function applyGravity(p1, p2, dt, G = 0.06) {
+        function applyGravity(p1, p2, dt, G = 0.08) { // Increased G for more noticeable gravity
             const dx = p2.x - p1.x;
             const dy = p2.y - p1.y;
             const distSq = dx * dx + dy * dy;
             if (distSq === 0) return;
             const dist = Math.sqrt(distSq);
-            const minGravDist = p1.size + p2.size + 2;
+            const minGravDist = p1.size + p2.size + 2; // Minimum distance for gravity to apply
             
             if (dist > minGravDist) {
                 let gravityMult = 1;
+                // Stars have a stronger gravitational pull
                 if (p1.type === 'star') gravityMult *= 2.5;
                 if (p2.type === 'star') gravityMult *= 2.5;
 
+                // Newton's Law of Universal Gravitation: F = G * (m1 * m2) / r^2
                 let forceMagnitude = G * gravityMult * (p1.mass * p2.mass) / distSq;
-                const maxForceAllowed = 30;
+                const maxForceAllowed = 30; // Cap the force to prevent extreme accelerations
                 forceMagnitude = Math.min(forceMagnitude, maxForceAllowed);
                 
                 const forceX = forceMagnitude * dx / dist;
                 const forceY = forceMagnitude * dy / dist;
 
+                // Apply acceleration (a = F/m) to velocities
                 if (p1.mass > 0) {
                     p1.vx += forceX / p1.mass * dt;
                     p1.vy += forceY / p1.mass * dt;
@@ -699,12 +702,12 @@
                 this.vx = 0;
                 this.vy = 0;
                 this.data = data;
-                this.size = data.size;
-                this.mass = data.mass;
+                this.size = data.size; // Radius of the planet
+                this.mass = data.mass; // Mass of the planet (used in physics calculations)
                 this.baseColor = data.color;
                 this.owner = owner;
                 this.selected = false;
-                this.out = false;
+                this.out = false; // Flag if the planet is out of bounds
                 
                 this.axialTilt = data.axialTiltDeg !== undefined ? data.axialTiltDeg * (Math.PI / 180) : (Math.random() * 45 - 22.5) * (Math.PI / 180);
                 this.rotationPeriodFactor = data.rotationPeriod !== undefined ? data.rotationPeriod : Math.random() * 0.009 + 0.001;
@@ -1063,7 +1066,8 @@
             update(deltaTime) {
                 this.angle = (this.angle + this.rotationSpeed * (deltaTime * 60)) % (Math.PI * 2);
                 // Apply friction: damping factor for velocity
-                const dampingFactor = 0.98; // Slightly increased damping for more noticeable friction
+                // A lower damping factor (e.g., 0.97) means more friction, planets stop faster.
+                const dampingFactor = 0.975; // Adjusted for quicker settling
                 this.vx *= Math.pow(dampingFactor, deltaTime * 60);
                 this.vy *= Math.pow(dampingFactor, deltaTime * 60);
 
@@ -1945,7 +1949,7 @@
                 const normalizedY = dirY / dist;
                 shootPlanet(selectedPlanet, normalizedX, normalizedY, powerAmount);
                 
-                // Immediately switch turn after a valid shot
+                // Immediately switch turn after a valid shot, as per user's request
                 switchTurn();
 
             } else { // Invalid shot (too short drag or low power)
