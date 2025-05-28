@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>간단한 클릭 테스트</title>
+    <style>
+        canvas {
+            border: 2px solid #333;
+            cursor: pointer;
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">클릭 테스트 - 버튼을 클릭해보세요</div>
+    <canvas id="testCanvas" width="1200" height="800"></canvas>
+    
+    <script>
+        console.log('🧪 간단한 테스트 시작');
+        
+        const canvas = document.getElementById('testCanvas');
+        const ctx = canvas.getContext('2d');
+        const info = document.getElementById('info');
+        
+        let mousePos = { x: 0, y: 0 };
+        let clickCount = 0;
+        
+        // 마우스 위치 추적
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mousePos.x = e.clientX - rect.left;
+            mousePos.y = e.clientY - rect.top;
+        });
+        
+        // 클릭 이벤트
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            clickCount++;
+            console.log(`🖱️ 클릭 #${clickCount}: (${x}, ${y})`);
+            info.textContent = `클릭 #${clickCount}: (${Math.round(x)}, ${Math.round(y)})`;
+            
+            // 버튼 영역 확인
+            checkButtonClick(x, y);
+        });
+        
+        function checkButtonClick(x, y) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            const button1 = {
+                x: centerX - 100,
+                y: centerY + 20,
+                width: 200,
+                height: 40
+            };
+            
+            const button2 = {
+                x: centerX - 100,
+                y: centerY + 80,
+                width: 200,
+                height: 40
+            };
+            
+            if (x >= button1.x && x <= button1.x + button1.width && 
+                y >= button1.y && y <= button1.y + button1.height) {
+                console.log('✅ 버튼 1 클릭됨!');
+                alert('버튼 1이 클릭되었습니다!');
+            } else if (x >= button2.x && x <= button2.x + button2.width && 
+                       y >= button2.y && y <= button2.y + button2.height) {
+                console.log('✅ 버튼 2 클릭됨!');
+                alert('버튼 2가 클릭되었습니다!');
+            } else {
+                console.log('❌ 버튼 외부 클릭');
+            }
+        }
+        
+        function render() {
+            // 배경 클리어
+            ctx.fillStyle = '#001122';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // 제목
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 32px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('클릭 테스트', centerX, centerY - 100);
+            
+            // 버튼 1
+            const button1X = centerX - 100;
+            const button1Y = centerY + 20;
+            const buttonWidth = 200;
+            const buttonHeight = 40;
+            
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(button1X, button1Y, buttonWidth, buttonHeight);
+            
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(button1X, button1Y, buttonWidth, buttonHeight);
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '18px Arial';
+            ctx.fillText('테스트 버튼 1', centerX, button1Y + 25);
+            
+            // 버튼 2
+            const button2Y = centerY + 80;
+            
+            ctx.fillStyle = '#2196F3';
+            ctx.fillRect(button1X, button2Y, buttonWidth, buttonHeight);
+            
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(button1X, button2Y, buttonWidth, buttonHeight);
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillText('테스트 버튼 2', centerX, button2Y + 25);
+            
+            // 마우스 위치 표시
+            ctx.strokeStyle = '#FF00FF';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(mousePos.x - 10, mousePos.y);
+            ctx.lineTo(mousePos.x + 10, mousePos.y);
+            ctx.moveTo(mousePos.x, mousePos.y - 10);
+            ctx.lineTo(mousePos.x, mousePos.y + 10);
+            ctx.stroke();
+            
+            // 좌표 정보
+            ctx.fillStyle = '#FFFF00';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`마우스: (${Math.round(mousePos.x)}, ${Math.round(mousePos.y)})`, 10, 30);
+            ctx.fillText(`버튼1 영역: (${button1X}, ${button1Y}) ~ (${button1X + buttonWidth}, ${button1Y + buttonHeight})`, 10, 50);
+            ctx.fillText(`버튼2 영역: (${button1X}, ${button2Y}) ~ (${button1X + buttonWidth}, ${button2Y + buttonHeight})`, 10, 70);
+            ctx.fillText(`클릭 횟수: ${clickCount}`, 10, 90);
+            
+            requestAnimationFrame(render);
+        }
+        
+        // 렌더링 시작
+        render();
+        console.log('🎨 렌더링 시작됨');
+    </script>
+</body>
+</html> 
